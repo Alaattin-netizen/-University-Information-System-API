@@ -1,4 +1,4 @@
-namespace trex_intern_2
+namespace UIS.API
 {
     public class WeatherForecast
     {

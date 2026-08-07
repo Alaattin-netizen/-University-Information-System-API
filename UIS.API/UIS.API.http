@@ -1,0 +1,6 @@
+@UIS.API_HostAddress = http://localhost:5196
+
+GET {{UIS.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

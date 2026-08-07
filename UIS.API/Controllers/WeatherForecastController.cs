@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace trex_intern_2.Controllers
+namespace UIS.API.Controllers
 {
     [ApiController]
     [Route("[controller]")]
