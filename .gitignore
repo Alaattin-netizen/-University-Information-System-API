@@ -1,0 +1,53 @@
+# Visual Studio / .NET
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+[Bb]in/
+[Oo]bj/
+out/
+artifacts/
+
+# NuGet
+*.nupkg
+packages/
+.nuget/
+project.lock.json
+project.fragment.lock.json
+
+# Rider
+.idea/
+*.sln.iml
+
+# User-specific and system files
+*.db
+*.log
+*.vsix
+
+# Test results
+TestResults/
+*.trx
+*.coverage
+coverage/
+
+# ASP.NET Core local settings (do NOT commit secrets)
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+
+# SSL certificates
+*.pfx
+
+# Node / frontend
+node_modules/
+
+# Misc
+Thumbs.db
+*.DS_Store
+
+# Optional: ignore tracked .vs if it was accidentally committed
+# (run: git rm -r --cached .vs)
