@@ -38,6 +38,14 @@ coverage/
 appsettings.Development.json
 appsettings.Local.json
 secrets.json
+# Project-specific appsettings that should not be committed
+# Ignore UIS.API project appsettings (case-insensitive match)
+UIS.API/appsettings.json
+
+# Common files to ignore for ASP.NET Core projects
+**/Properties/launchSettings.json
+local.settings.json
+*.env
 
 # SSL certificates
 *.pfx

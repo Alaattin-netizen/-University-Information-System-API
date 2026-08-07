@@ -20,14 +20,14 @@ public class Enrollment
     public double? FinalScore { get; set; }
     public double? AssignmentScore { get; set; }
     public double? MakeupScore { get; set; }
-
+    
     // Calculated weighted total (will be set by Application layer)
     public double? TotalScore { get; set; }
-
+    
     // The Letter Grade (e.g., "AA", "BB")
     [MaxLength(2)]
     public string? LetterGrade { get; set; }
-
+    
     // Grade Point Value (e.g., 4.0 for AA, 3.0 for BA)
     public double? GradePoint { get; set; }
 }
