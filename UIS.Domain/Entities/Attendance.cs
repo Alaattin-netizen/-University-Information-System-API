@@ -5,6 +5,7 @@ namespace UIS.Domain.Entities;
 
 public class Attendance 
 {
+    [Key] public int Id {  get; set; }
     public int StudentId { get; set; }
     public virtual Student Student { get; set; }
 

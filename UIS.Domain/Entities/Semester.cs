@@ -13,4 +13,6 @@ public class Semester
     public DateTime RegistrationStart { get; set; }
     public DateTime RegistrationEnd { get; set; }
     public bool IsActive { get; set; }
+
+    public virtual ICollection<CourseOffering> CourseOfferings { get; set; } = new List<CourseOffering>();
 }

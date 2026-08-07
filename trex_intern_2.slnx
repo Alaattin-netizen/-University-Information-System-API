@@ -1,3 +1,6 @@
 <Solution>
-  <Project Path="trex_intern_2/trex_intern_2.csproj" />
+  <Project Path="UIS.API/UIS.API.csproj" />
+  <Project Path="UIS.Application/UIS.Application.csproj" />
+  <Project Path="UIS.Domain/UIS.Domain.csproj" />
+  <Project Path="UIS.Infrastructure/UIS.Infrastructure.csproj" />
 </Solution>
