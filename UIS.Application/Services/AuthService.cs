@@ -29,9 +29,8 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Invalid email or password");
         }
 
-        // TODO: Add password hashing (use BCrypt or Identity)
-        // For now, simple check (WILL CHANGE)
-        if (user.PasswordHash != request.Password)
+        // ✅ FIXED: Verify the hashed password
+        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
             throw new UnauthorizedAccessException("Invalid email or password");
         }
@@ -67,7 +66,7 @@ public class AuthService : IAuthService
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Email = request.Email,
-                PasswordHash = request.Password, // TODO: Hash this!
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 Role = Role.Student,
                 DepartmentId = request.DepartmentId
             },
@@ -76,7 +75,7 @@ public class AuthService : IAuthService
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Email = request.Email,
-                PasswordHash = request.Password, // TODO: Hash this!
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 Role = Role.Instructor,
                 DepartmentId = request.DepartmentId
             },
@@ -85,7 +84,7 @@ public class AuthService : IAuthService
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Email = request.Email,
-                PasswordHash = request.Password, // TODO: Hash this!
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 Role = Role.Admin
             },
             _ => throw new InvalidOperationException("Invalid role")
