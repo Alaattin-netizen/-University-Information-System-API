@@ -1,10 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using UIS.Application.Abstractions;
-using UIS.Application.DTOs.Enrollments;
-using UIS.Application.DTOs.Messages;
-using UIS.Application.DTOs.Profile;
+using UIS.Application.Abstractions.StudentAbstractions;
+using UIS.Application.DTOs.Student.Courses;
+using UIS.Application.DTOs.Student.Messages;
+using UIS.Application.DTOs.Student.Profile;
 
 namespace UIS.API.Controllers;
 

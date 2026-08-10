@@ -5,6 +5,7 @@ using UIS.Application.DTOs.Auth;
 using UIS.Domain.Entities;
 using UIS.Domain.Entities.Users;
 using UIS.Domain.Enums;
+using UIS.Application.Abstractions.StudentAbstractions;
 
 namespace UIS.Application.Services;
 

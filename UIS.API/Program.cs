@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using UIS.Application; 
-
+using UIS.Application;
+using Microsoft.OpenApi; 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -15,7 +15,23 @@ builder.Services.AddApplicationServices(builder.Configuration);
 Console.WriteLine("✅ AddApplicationServices is being called!");
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter your JWT token like: Bearer eyJhbGciOiJIUzI1NiIs..."
+    });
+
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+    });
+});
 var jwtSecret = builder.Configuration["JwtSettings:Secret"]
     ?? throw new InvalidOperationException("JWT Secret not configured");
 
