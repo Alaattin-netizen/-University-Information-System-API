@@ -25,6 +25,11 @@ public static class DependencyInjection
         // ✅ Register Services
         services.AddScoped<IJwtService, JwtService>(); 
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IEnrollmentService, EnrollmentService>();
+        services.AddScoped<IGradeService, GradeService>();
+        services.AddScoped<IScheduleService, ScheduleService>();
+        services.AddScoped<IMessageService, MessageService>();
+        services.AddScoped<IProfileService, ProfileService>();
 
         return services;
     }
