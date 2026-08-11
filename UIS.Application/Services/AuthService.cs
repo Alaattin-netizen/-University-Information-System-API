@@ -13,11 +13,13 @@ public class AuthService : IAuthService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IJwtService _jwtService;
+    private readonly LoggingHelper _loggingHelper;
 
-    public AuthService(IUnitOfWork unitOfWork, IJwtService jwtService)
+    public AuthService(IUnitOfWork unitOfWork, IJwtService jwtService, LoggingHelper loggingHelper)
     {
         _unitOfWork = unitOfWork;
         _jwtService = jwtService;
+        _loggingHelper = loggingHelper;
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -42,7 +44,7 @@ public class AuthService : IAuthService
         {
             UserId = user.Id,
             Email = user.Email,
-            Role = user.Role.ToString(),
+            Role = user.Role,
             Token = token,
             ExpiresAt = DateTime.UtcNow.AddMinutes(60)
         };
@@ -62,45 +64,50 @@ public class AuthService : IAuthService
         // Create user based on role
         User user = request.Role switch
         {
-            "Student" => new Student
+            Role.Student => new Student
             {
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role = "Student",
+                Role = Role.Student,
                 DepartmentId = request.DepartmentId
             },
-            "Instructor" => new Instructor
+            Role.Instructor => new Instructor
             {
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role = "Instructor",
+                Role = Role.Instructor,
                 DepartmentId = request.DepartmentId
             },
-            "Admin" => new Admin
+            Role.Admin => new Admin
             {
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role = "Admin"
+                Role = Role.Admin
             },
             _ => throw new InvalidOperationException("Invalid role")
         };
 
         await _unitOfWork.Repository<User>().AddAsync(user);
         await _unitOfWork.SaveChangesAsync();
-
+        await _loggingHelper.LogOperationAsync(
+           "Created",
+           "User",
+           user.Id,
+           $"Email: {user.Email}, Role: {user.Role}"
+       );
         var token = _jwtService.GenerateToken(user.Id, user.Email, user.Role.ToString());
 
         return new AuthResponse
         {
             UserId = user.Id,
             Email = user.Email,
-            Role = user.Role.ToString(),
+            Role = user.Role,
             Token = token,
             ExpiresAt = DateTime.UtcNow.AddMinutes(60)
         };

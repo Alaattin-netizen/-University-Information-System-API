@@ -20,7 +20,7 @@ public abstract class User
     public string PasswordHash { get; set; } 
 
     [Required]
-    public String Role { get; set; } 
+    public Role Role { get; set; } 
 }
 
 

@@ -9,10 +9,12 @@ namespace UIS.Application.Services.StudentServices;
 public class MessageService : IMessageService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly LoggingHelper _loggingHelper;  
 
-    public MessageService(IUnitOfWork unitOfWork)
+    public MessageService(IUnitOfWork unitOfWork, LoggingHelper loggingHelper)
     {
         _unitOfWork = unitOfWork;
+        _loggingHelper = loggingHelper;
     }
 
     public async Task SendMessageAsync(int studentId, SendMessageRequest request)
@@ -36,5 +38,11 @@ public class MessageService : IMessageService
         var repo = _unitOfWork.Repository<Message>();
         await repo.AddAsync(message);
         await _unitOfWork.SaveChangesAsync();
+        await _loggingHelper.LogOperationAsync(
+           "Created",
+           "Message",
+           message.Id,
+           $"From: {studentId}, To: {student.AdvisorId.Value}"
+       );
     }
 }

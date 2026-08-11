@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using UIS.Application.Abstractions.StudentAbstractions;
 
-namespace UIS.Application.Services.StudentServices;
+namespace UIS.Application.Services;
 
 public class JwtService : IJwtService
 {

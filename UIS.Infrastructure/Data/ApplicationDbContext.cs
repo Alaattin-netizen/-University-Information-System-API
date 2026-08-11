@@ -36,9 +36,9 @@ public class ApplicationDbContext : DbContext
         // --- 1. Configure Inheritance (TPH) ---
         modelBuilder.Entity<User>()
             .HasDiscriminator(u => u.Role)
-            .HasValue<Student>("Student")
-            .HasValue<Instructor>("Instructor")
-            .HasValue<Admin>("Admin");
+            .HasValue<Student>(Role.Student)
+            .HasValue<Instructor>(Role.Instructor)
+            .HasValue<Admin>(Role.Admin);
 
         // --- 2. Unique Constraints ---
         modelBuilder.Entity<User>()

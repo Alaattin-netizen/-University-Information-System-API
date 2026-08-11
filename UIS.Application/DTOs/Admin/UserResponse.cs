@@ -8,9 +8,8 @@ public class UserResponse
     public string Email { get; set; }
     public string Role { get; set; }
     public int? DepartmentId { get; set; }
-    public string? DepartmentName { get; set; }
     public int? AdvisorId { get; set; } // For students only
-    public string? AdvisorName { get; set; } // For students only
+   
     public DateTime CreatedAt { get; set; }
     public bool IsActive { get; set; }
 }

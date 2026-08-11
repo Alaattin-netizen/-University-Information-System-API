@@ -9,9 +9,9 @@ namespace UIS.Application.Abstractions.AdminAbstractions
     public interface IFacultyService
     {
         Task<FacultyResponse> CreateFacultyAsync(CreateFacultyRequest request);
-        Task<DepartmentResponse> CreateDepartmentAsync(int facultyId, CreateDepartmentRequest request);
+        Task<DepartmentResponse> CreateDepartmentAsync( CreateDepartmentRequest request);
 
-        Task<CourseResponse> CreateCourseAsync(int departmentId, CreateCourseRequest request);
+        Task<CourseResponse> CreateCourseAsync( CreateCourseRequest request);
 
     }
 }

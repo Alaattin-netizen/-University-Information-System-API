@@ -1,19 +1,21 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Azure.Core;
+using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.StudentAbstractions;
 using UIS.Application.DTOs.Student.Courses;
 using UIS.Domain.Entities;
 using UIS.Domain.Entities.Users;
 using UIS.Infrastructure.Repositories;
-
 namespace UIS.Application.Services.StudentServices;
 
 public class EnrollmentService : IEnrollmentService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly LoggingHelper _loggingHelper;
 
-    public EnrollmentService(IUnitOfWork unitOfWork)
+    public EnrollmentService(IUnitOfWork unitOfWork, LoggingHelper loggingHelper)
     {
         _unitOfWork = unitOfWork;
+        _loggingHelper = loggingHelper;
     }
 
     public async Task<IEnumerable<CourseResponse>> GetOpenCoursesAsync()
@@ -111,6 +113,12 @@ public class EnrollmentService : IEnrollmentService
 
         await enrollmentRepo.AddAsync(enrollment);
         await _unitOfWork.SaveChangesAsync();
+        await _loggingHelper.LogOperationAsync(
+           "Created",
+           "Enrollment",
+           enrollment.Id,
+           $"Student: {studentId}, CourseOffering: {courseOfferingId}"
+       );
     }
 
     public async Task DropAsync(int studentId, int enrollmentId)

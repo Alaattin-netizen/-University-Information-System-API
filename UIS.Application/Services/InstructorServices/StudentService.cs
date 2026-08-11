@@ -2,17 +2,20 @@
 using UIS.Application.Abstractions.InstructorAbstractions;
 using UIS.Application.DTOs.Instructor;
 using UIS.Domain.Entities;
+using UIS.Domain.Entities.Users;
 using UIS.Infrastructure.Repositories;
-
+using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace UIS.Application.Services.InstructorServices;
 
 public class StudentService : IStudentService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly LoggingHelper _loggingHelper;
 
-    public StudentService(IUnitOfWork unitOfWork)
+    public StudentService(IUnitOfWork unitOfWork, LoggingHelper loggingHelper)
     {
         _unitOfWork = unitOfWork;
+        _loggingHelper = loggingHelper;
     }
 
     // 3. Enter/Update grades for a student
@@ -63,6 +66,12 @@ public class StudentService : IStudentService
         }
 
         await _unitOfWork.SaveChangesAsync();
+        await _loggingHelper.LogOperationAsync(
+    "Updated",
+    "Grade",
+    enrollment.Id,
+    $"Instructor: {instructorId}, Student: {enrollment.StudentId}, Course: {enrollment.CourseOfferingId}"
+);
     }
 
     // 4. Enter attendance for a student
@@ -90,10 +99,12 @@ public class StudentService : IStudentService
                                 a.CourseOfferingId == offering.Id &&
                                 a.Date.Date == request.Date.Date);
 
+        int attendanceId;
         if (existingAttendance != null)
         {
             existingAttendance.IsPresent = request.IsPresent;
             _unitOfWork.Repository<Attendance>().Update(existingAttendance);
+            attendanceId = existingAttendance.Id;
         }
         else
         {
@@ -105,9 +116,19 @@ public class StudentService : IStudentService
                 IsPresent = request.IsPresent
             };
             await _unitOfWork.Repository<Attendance>().AddAsync(attendance);
+            await _unitOfWork.SaveChangesAsync(); // Need to save to get the ID
+            attendanceId = attendance.Id;
         }
 
         await _unitOfWork.SaveChangesAsync();
+
+        // ✅ Use the correct variable names
+        await _loggingHelper.LogOperationAsync(
+            "Updated",
+            "Attendance",
+            request.StudentId, // or attendanceId if you prefer
+            $"CourseOffering: {offering.Id}, Date: {request.Date:yyyy-MM-dd}, Present: {request.IsPresent}"
+        );
     }
     private (string LetterGrade, double GradePoint) GetGradeInfo(double score)
     {

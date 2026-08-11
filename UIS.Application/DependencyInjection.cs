@@ -2,12 +2,16 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using UIS.Application.Abstractions;
+using UIS.Application.Abstractions.AdminAbstractions;
+
 // ✅ Instructor Abstractions (for instructor-related services)
 using UIS.Application.Abstractions.InstructorAbstractions;
 // ✅ Student Abstractions (for student-related services)
 using UIS.Application.Abstractions.StudentAbstractions;
 // ✅ General Services
 using UIS.Application.Services;
+using UIS.Application.Services.AdminServices;
+
 // ✅ Instructor Services
 using UIS.Application.Services.InstructorServices;
 // ✅ Student Services
@@ -34,6 +38,8 @@ public static class DependencyInjection
         // ---- General Services ----
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IJwtService, JwtService>();
+        services.AddScoped<LoggingHelper>();
+        services.AddHttpContextAccessor();
 
         // ---- Student Services ----
         services.AddScoped<IEnrollmentService, EnrollmentService>();
@@ -48,8 +54,11 @@ public static class DependencyInjection
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<IStudentService, StudentService>();
 
-        // ---- Admin Services ----
-        services.AddScoped<Helper>();
+        //---- Admin Services ----
+        services.AddScoped<IFacultyService, FacultyService>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<ISemesterService, SemesterService>();
+        services.AddScoped<ILogService, LogService>();
 
         return services;
     }

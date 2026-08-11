@@ -1,17 +1,19 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.InstructorAbstractions;
 using UIS.Application.DTOs.Instructor;
-using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
-
+using UIS.Domain.Entities;
 namespace UIS.Application.Services.InstructorServices;
 
 public class CourseService : ICourseService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly LoggingHelper _loggingHelper;  
 
-    public CourseService(IUnitOfWork unitOfWork)
+    public CourseService(IUnitOfWork unitOfWork, LoggingHelper loggingHelper)
+
     {
+        _loggingHelper = loggingHelper;
         _unitOfWork = unitOfWork;
     }
 
@@ -110,6 +112,14 @@ public class CourseService : ICourseService
 
         await _unitOfWork.Repository<Announcement>().AddAsync(announcement);
         await _unitOfWork.SaveChangesAsync();
+
+        await _loggingHelper.LogOperationAsync(
+     "Created",
+     "Announcement",
+     announcement.Id,
+     $"Title: {request.Title}, CourseOfferingId: {request.CourseOfferingId}"
+ );
+
     }
 
    
