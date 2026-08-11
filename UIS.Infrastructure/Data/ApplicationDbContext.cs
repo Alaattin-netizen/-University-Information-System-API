@@ -27,6 +27,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Announcement> Announcements { get; set; }
     public DbSet<Message> Messages { get; set; }
 
+    public DbSet<AuditLog> AuditLogs { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -34,9 +36,9 @@ public class ApplicationDbContext : DbContext
         // --- 1. Configure Inheritance (TPH) ---
         modelBuilder.Entity<User>()
             .HasDiscriminator(u => u.Role)
-            .HasValue<Student>(Role.Student)
-            .HasValue<Instructor>(Role.Instructor)
-            .HasValue<Admin>(Role.Admin);
+            .HasValue<Student>("Student")
+            .HasValue<Instructor>("Instructor")
+            .HasValue<Admin>("Admin");
 
         // --- 2. Unique Constraints ---
         modelBuilder.Entity<User>()

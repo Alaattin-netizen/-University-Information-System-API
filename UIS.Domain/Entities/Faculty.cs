@@ -11,5 +11,7 @@ public class Faculty
     [MaxLength(50)]
     public string? DeanName { get; set; }
 
+    public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+
     public virtual ICollection<Department> Departments { get; set; } = new List<Department>();
 }

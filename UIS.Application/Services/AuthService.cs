@@ -62,31 +62,31 @@ public class AuthService : IAuthService
         // Create user based on role
         User user = request.Role switch
         {
-            Role.Student => new Student
+            "Student" => new Student
             {
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role = Role.Student,
+                Role = "Student",
                 DepartmentId = request.DepartmentId
             },
-            Role.Instructor => new Instructor
+            "Instructor" => new Instructor
             {
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role = Role.Instructor,
+                Role = "Instructor",
                 DepartmentId = request.DepartmentId
             },
-            Role.Admin => new Admin
+            "Admin" => new Admin
             {
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role = Role.Admin
+                Role = "Admin"
             },
             _ => throw new InvalidOperationException("Invalid role")
         };

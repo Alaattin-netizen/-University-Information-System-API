@@ -1,24 +1,19 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using UIS.Infrastructure.Data;
-using UIS.Infrastructure.Repositories;
-
-// ✅ Student Abstractions (for student-related services)
-using UIS.Application.Abstractions.StudentAbstractions;
-
+using UIS.Application.Abstractions;
 // ✅ Instructor Abstractions (for instructor-related services)
 using UIS.Application.Abstractions.InstructorAbstractions;
-
-// ✅ Student Services
-using UIS.Application.Services.StudentServices;
-
-// ✅ Instructor Services
-using UIS.Application.Services.InstructorServices;
-
+// ✅ Student Abstractions (for student-related services)
+using UIS.Application.Abstractions.StudentAbstractions;
 // ✅ General Services
 using UIS.Application.Services;
-using UIS.Application.Abstractions;
+// ✅ Instructor Services
+using UIS.Application.Services.InstructorServices;
+// ✅ Student Services
+using UIS.Application.Services.StudentServices;
+using UIS.Infrastructure.Data;
+using UIS.Infrastructure.Repositories;
 
 namespace UIS.Application;
 
@@ -52,6 +47,9 @@ public static class DependencyInjection
         // ---- Instructor Services ----
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<IStudentService, StudentService>();
+
+        // ---- Admin Services ----
+        services.AddScoped<Helper>();
 
         return services;
     }
