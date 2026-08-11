@@ -10,12 +10,11 @@ namespace UIS.Application.Services.StudentServices;
 public class EnrollmentService : IEnrollmentService
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly LoggingHelper _loggingHelper;
 
-    public EnrollmentService(IUnitOfWork unitOfWork, LoggingHelper loggingHelper)
+
+    public EnrollmentService(IUnitOfWork unitOfWork)
     {
         _unitOfWork = unitOfWork;
-        _loggingHelper = loggingHelper;
     }
 
     public async Task<IEnumerable<CourseResponse>> GetOpenCoursesAsync()
@@ -113,12 +112,7 @@ public class EnrollmentService : IEnrollmentService
 
         await enrollmentRepo.AddAsync(enrollment);
         await _unitOfWork.SaveChangesAsync();
-        await _loggingHelper.LogOperationAsync(
-           "Created",
-           "Enrollment",
-           enrollment.Id,
-           $"Student: {studentId}, CourseOffering: {courseOfferingId}"
-       );
+     
     }
 
     public async Task DropAsync(int studentId, int enrollmentId)
