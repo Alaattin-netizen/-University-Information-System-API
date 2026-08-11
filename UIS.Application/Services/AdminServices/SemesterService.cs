@@ -9,19 +9,19 @@ namespace UIS.Application.Services.AdminServices;
 public class SemesterService : ISemesterService
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly LoggingHelper _loggingHelper;
+   
 
-    public SemesterService(IUnitOfWork unitOfWork, LoggingHelper loggingHelper)
+    public SemesterService(IUnitOfWork unitOfWork)
     {
         _unitOfWork = unitOfWork;
-        _loggingHelper = loggingHelper;
+      
     }
 
     // ======================================================
     // REQUIRED INTERFACE METHODS
     // ======================================================
 
-    public async Task OpenSemesterAsync(CreateSemesterRequest request)
+    public async Task<int> OpenSemesterAsync(CreateSemesterRequest request)
     {
         // Validate: Check for duplicate name
         var existing = await _unitOfWork.Repository<Semester>()
@@ -56,10 +56,10 @@ public class SemesterService : ISemesterService
         await _unitOfWork.SaveChangesAsync();
 
         // Log
-        await _loggingHelper.LogOperationAsync("Created", "Semester", semester.Id, $"Name: {semester.Name}");
+        return semester.Id;
     }
 
-    public async Task UpdateRegistrationCalenderAsync(int semesterId, UpdateSemesterRequest request)
+    public async Task<int> UpdateRegistrationCalenderAsync(int semesterId, UpdateSemesterRequest request)
     {
         var semester = await _unitOfWork.Repository<Semester>().GetByIdAsync(semesterId);
         if (semester == null)
@@ -90,7 +90,7 @@ public class SemesterService : ISemesterService
         await _unitOfWork.SaveChangesAsync();
 
         // Log
-        await _loggingHelper.LogOperationAsync("Updated", "Semester", semester.Id, $"Name: {semester.Name}");
+        return semester.Id;
     }
 
   
@@ -111,6 +111,5 @@ public class SemesterService : ISemesterService
         _unitOfWork.Repository<Semester>().Delete(semester);
         await _unitOfWork.SaveChangesAsync();
 
-        await _loggingHelper.LogOperationAsync("Deleted", "Semester", id, $"Name: {semester.Name}");
     }
 }

@@ -8,5 +8,6 @@ namespace UIS.Application.Abstractions.AdminAbstractions
     public interface ILogService
     {
         Task<IEnumerable<UserOperationResponse>> GetLogsAsync(int userId);
+        Task<IEnumerable<UserOperationResponse>> GetAllLogsAsync();
     }
 }

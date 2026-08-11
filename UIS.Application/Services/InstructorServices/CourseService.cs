@@ -8,12 +8,10 @@ namespace UIS.Application.Services.InstructorServices;
 public class CourseService : ICourseService
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly LoggingHelper _loggingHelper;  
 
-    public CourseService(IUnitOfWork unitOfWork, LoggingHelper loggingHelper)
+    public CourseService(IUnitOfWork unitOfWork)
 
     {
-        _loggingHelper = loggingHelper;
         _unitOfWork = unitOfWork;
     }
 
@@ -113,12 +111,7 @@ public class CourseService : ICourseService
         await _unitOfWork.Repository<Announcement>().AddAsync(announcement);
         await _unitOfWork.SaveChangesAsync();
 
-        await _loggingHelper.LogOperationAsync(
-     "Created",
-     "Announcement",
-     announcement.Id,
-     $"Title: {request.Title}, CourseOfferingId: {request.CourseOfferingId}"
- );
+        
 
     }
 

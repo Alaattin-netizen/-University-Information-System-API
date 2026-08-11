@@ -10,12 +10,12 @@ namespace UIS.Application.Services.InstructorServices;
 public class StudentService : IStudentService
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly LoggingHelper _loggingHelper;
+    
 
-    public StudentService(IUnitOfWork unitOfWork, LoggingHelper loggingHelper)
+    public StudentService(IUnitOfWork unitOfWork)
     {
         _unitOfWork = unitOfWork;
-        _loggingHelper = loggingHelper;
+        
     }
 
     // 3. Enter/Update grades for a student
@@ -66,12 +66,7 @@ public class StudentService : IStudentService
         }
 
         await _unitOfWork.SaveChangesAsync();
-        await _loggingHelper.LogOperationAsync(
-    "Updated",
-    "Grade",
-    enrollment.Id,
-    $"Instructor: {instructorId}, Student: {enrollment.StudentId}, Course: {enrollment.CourseOfferingId}"
-);
+       
     }
 
     // 4. Enter attendance for a student
@@ -122,13 +117,7 @@ public class StudentService : IStudentService
 
         await _unitOfWork.SaveChangesAsync();
 
-        // ✅ Use the correct variable names
-        await _loggingHelper.LogOperationAsync(
-            "Updated",
-            "Attendance",
-            request.StudentId, // or attendanceId if you prefer
-            $"CourseOffering: {offering.Id}, Date: {request.Date:yyyy-MM-dd}, Present: {request.IsPresent}"
-        );
+
     }
     private (string LetterGrade, double GradePoint) GetGradeInfo(double score)
     {

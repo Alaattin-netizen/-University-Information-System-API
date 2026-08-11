@@ -1,35 +1,36 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin;
+using UIS.Application.Services;
 
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using UIS.Application.Abstractions.AdminAbstractions;
-using UIS.Application.DTOs.Admin;
 
 namespace UIS.API.Controllers;
 
 [ApiController]
 [Route("api/admin")]
 [Authorize(Roles = "Admin")]
-public class AdminController : ControllerBase
+public class AdminController : BaseApiController
 {
     private readonly IFacultyService _facultyService;
     private readonly IUserService _userService;
     private readonly ISemesterService _semesterService;
     private readonly ILogService _logService;
+    private readonly LoggingHelper _loggingHelper;
 
     public AdminController(
         IFacultyService facultyService,
         IUserService userService,
         ISemesterService semesterService,
-        ILogService logService)
+        ILogService logService,
+        LoggingHelper loggingHelper )
     {
         _facultyService = facultyService;
         _userService = userService;
         _semesterService = semesterService;
         _logService = logService;
+        _loggingHelper = loggingHelper;
     }
 
     // ======================================================
@@ -40,13 +41,34 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> CreateFaculty([FromBody] CreateFacultyRequest request)
     {
         var result = await _facultyService.CreateFacultyAsync(request);
+        await _loggingHelper.LogOperationAsync(
+           "Created",
+           "Faculty",
+           result.Id,
+           $"Name: {request.Name}",
+           GetCurrentUserId(),
+           GetCurrentUserEmail(),
+           GetCurrentUserRole()
+       );
+
         return CreatedAtAction(nameof(CreateFaculty), new { id = result.Id }, result);
+
+
     }
 
     [HttpPost("departments")]
     public async Task<IActionResult> CreateDepartment([FromBody] CreateDepartmentRequest request)
     {
         var result = await _facultyService.CreateDepartmentAsync(request);
+        await _loggingHelper.LogOperationAsync(
+         "Created",
+         "Department",
+         result.Id,
+         $"Name: {request.Name}",
+         GetCurrentUserId(),
+         GetCurrentUserEmail(),
+         GetCurrentUserRole()
+     );
         return CreatedAtAction(nameof(CreateDepartment), new { id = result.Id }, result);
     }
 
@@ -54,6 +76,15 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> CreateCourse([FromBody] CreateCourseRequest request)
     {
         var result = await _facultyService.CreateCourseAsync(request);
+        await _loggingHelper.LogOperationAsync(
+         "Created",
+         "Course",
+         result.Id,
+         $"Name: {request.Name}",
+         GetCurrentUserId(),
+         GetCurrentUserEmail(),
+         GetCurrentUserRole()
+     );
         return CreatedAtAction(nameof(CreateCourse), new { id = result.Id }, result);
     }
 
@@ -65,6 +96,15 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> CreateStudent([FromBody] CreateStudentRequest request)
     {
         var result = await _userService.CreateStudentAsync(request);
+        await _loggingHelper.LogOperationAsync(
+       "Created",
+       "Student",
+       result.Id,
+       $"Email: {request.Email}, Name: {request.FirstName} {request.LastName}",
+       GetCurrentUserId(),
+       GetCurrentUserEmail(),
+       GetCurrentUserRole()
+   );
         return CreatedAtAction(nameof(CreateStudent), new { id = result.Id }, result);
     }
 
@@ -72,6 +112,15 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> CreateInstructor([FromBody] CreateInstructorRequest request)
     {
         var result = await _userService.CreateInstructorAsync(request);
+        await _loggingHelper.LogOperationAsync(
+         "Created",
+         "Instructor",
+         result.Id,
+         $"Name: {request.FirstName} {request.LastName}",
+         GetCurrentUserId(),
+         GetCurrentUserEmail(),
+         GetCurrentUserRole()
+     );
         return CreatedAtAction(nameof(CreateInstructor), new { id = result.Id }, result);
     }
 
@@ -82,7 +131,16 @@ public class AdminController : ControllerBase
     [HttpPost("semesters/open")]
     public async Task<IActionResult> OpenSemester([FromBody] CreateSemesterRequest request)
     {
-        await _semesterService.OpenSemesterAsync(request);
+        var semesterId = await _semesterService.OpenSemesterAsync(request);
+        await _loggingHelper.LogOperationAsync(
+         "Created",
+         "Semester",
+         semesterId,
+         $"Name: {request.Name}",
+         GetCurrentUserId(),
+         GetCurrentUserEmail(),
+         GetCurrentUserRole()
+     );
         return Ok(new { message = "Semester opened successfully." });
     }
 
@@ -90,6 +148,15 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> UpdateRegistrationCalendar(int semesterId, [FromBody] UpdateSemesterRequest request)
     {
         await _semesterService.UpdateRegistrationCalenderAsync(semesterId, request);
+        await _loggingHelper.LogOperationAsync(
+         "Created",
+         "Semester",
+         semesterId,
+         $"Name: null",
+         GetCurrentUserId(),
+         GetCurrentUserEmail(),
+         GetCurrentUserRole()
+     );
         return Ok(new { message = "Registration calendar updated successfully." });
     }
 
@@ -100,11 +167,10 @@ public class AdminController : ControllerBase
     [HttpGet("logs")]
     public async Task<IActionResult> GetAllLogs()
     {
-        // If your ILogService has a method to get all logs, use it.
-        // Otherwise, we can get logs for a specific user or all users.
-        var logs = await _logService.GetLogsAsync(0); // 0 = all users (if implemented)
+        var logs = await _logService.GetAllLogsAsync(); // ✅ Now works
         return Ok(logs);
     }
+
 
     [HttpGet("logs/user/{userId}")]
     public async Task<IActionResult> GetUserLogs(int userId)
@@ -112,4 +178,6 @@ public class AdminController : ControllerBase
         var logs = await _logService.GetLogsAsync(userId);
         return Ok(logs);
     }
+
+
 }

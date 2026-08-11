@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 
@@ -15,15 +16,15 @@ public class LoggingHelper
         _unitOfWork = unitOfWork;
     }
 
-    public async Task LogOperationAsync(string action, string entityType, int? entityId, string? details = null)
+    public async Task LogOperationAsync(
+     string action,
+     string entityType,
+     int? entityId,
+     string? details = null,
+     int userId = 0,
+     string userEmail = "Unknown",
+     string userRole = "Unknown")
     {
-        var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst("nameid")?.Value;
-        var userId = int.TryParse(userIdClaim, out var id) ? id : 0;
-
-        var userEmail = _httpContextAccessor.HttpContext?.User?.FindFirst("email")?.Value ?? "Unknown";
-        var userRole = _httpContextAccessor.HttpContext?.User?.FindFirst("role")?.Value ?? "Unknown";
-        var ipAddress = _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "Unknown";
-
         var log = new AuditLog
         {
             UserId = userId,
@@ -34,7 +35,7 @@ public class LoggingHelper
             EntityId = entityId,
             Details = details,
             Timestamp = DateTime.UtcNow,
-            IpAddress = ipAddress
+            IpAddress = _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "Unknown"
         };
 
         await _unitOfWork.Repository<AuditLog>().AddAsync(log);

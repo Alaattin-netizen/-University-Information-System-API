@@ -3,25 +3,26 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using UIS.Application.Abstractions.InstructorAbstractions;
 using UIS.Application.DTOs.Instructor;
-using UIS.Application.DTOs.Student.Courses;
-
+using UIS.Application.Services;
 namespace UIS.API.Controllers;
 
 [ApiController]
 [Route("api/instructors/me")]
 [Authorize(Roles = "Instructor")]
-public class InstructorController : ControllerBase
+public class InstructorController : BaseApiController
 {
     private readonly ICourseService _CourseService;
     private readonly IStudentService _StudentService;
-    
+    private readonly LoggingHelper _loggingHelper;
 
     public InstructorController(
         ICourseService courseService,
-        IStudentService studentService)
+        IStudentService studentService,
+        LoggingHelper loggingHelper)
     {
         _CourseService = courseService;
         _StudentService = studentService;
+        _loggingHelper = loggingHelper;
     }
 
     private int GetInstructorId()
@@ -50,6 +51,15 @@ public class InstructorController : ControllerBase
     public async Task<IActionResult> CreateAnnouncement([FromBody] CreateAnnouncementRequest request)
     {
         await _CourseService.CreateAnnouncementAsync(GetInstructorId(), request);
+        await _loggingHelper.LogOperationAsync(
+        "Created",
+        "Announcement",
+        null,
+        $"Title: {request.Title}, CourseOfferingId: {request.CourseOfferingId}",
+        GetCurrentUserId(),
+        GetCurrentUserEmail(),
+        GetCurrentUserRole()
+    );
         return Ok(new { message = "Announcement created successfully." });
     }
 
@@ -58,6 +68,15 @@ public class InstructorController : ControllerBase
     public async Task<IActionResult> EnterGrades([FromBody] GradeEntryRequest request)
     {
         await _StudentService.EnterGradesAsync(GetInstructorId(), request);
+        await _loggingHelper.LogOperationAsync(
+     "Updated",
+     "Grade",
+     request.EnrollmentId,
+     $"Instructor: {GetCurrentUserEmail()}, EnrollmentId: {request.EnrollmentId}",
+     GetCurrentUserId(),
+     GetCurrentUserEmail(),
+     GetCurrentUserRole()
+ );
         return Ok(new { message = "Grades entered successfully." });
     }
 
@@ -66,6 +85,15 @@ public class InstructorController : ControllerBase
     public async Task<IActionResult> EnterAttendance([FromBody] AttendanceEntryRequest request)
     {
         await _StudentService.EnterAttendanceAsync(GetInstructorId(), request);
+        await _loggingHelper.LogOperationAsync(
+     "Updated",
+     "Attendance",
+     request.StudentId,
+     $"Date: {request.Date:yyyy-MM-dd}, Present: {request.IsPresent}",
+     GetCurrentUserId(),
+     GetCurrentUserEmail(),
+     GetCurrentUserRole()
+ );
         return Ok(new { message = "Attendance entered successfully." });
     }
 

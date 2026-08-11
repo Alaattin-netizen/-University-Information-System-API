@@ -5,32 +5,35 @@ using UIS.Application.Abstractions.StudentAbstractions;
 using UIS.Application.DTOs.Student.Courses;
 using UIS.Application.DTOs.Student.Messages;
 using UIS.Application.DTOs.Student.Profile;
-
+using UIS.Application.Services;
 namespace UIS.API.Controllers;
 
 [ApiController]
 [Route("api/students/me")]
 [Authorize(Roles = "Student")]
-public class StudentController : ControllerBase
+public class StudentController : BaseApiController
 {
     private readonly IEnrollmentService _enrollmentService;
     private readonly IGradeService _gradeService;
     private readonly IScheduleService _scheduleService;
     private readonly IMessageService _messageService;
     private readonly IProfileService _profileService;
+    private readonly LoggingHelper _loggingHelper;
 
     public StudentController(
         IEnrollmentService enrollmentService,
         IGradeService gradeService,
         IScheduleService scheduleService,
         IMessageService messageService,
-        IProfileService profileService)
+        IProfileService profileService,
+        LoggingHelper loggingHelper)
     {
         _enrollmentService = enrollmentService;
         _gradeService = gradeService;
         _scheduleService = scheduleService;
         _messageService = messageService;
         _profileService = profileService;
+        _loggingHelper = loggingHelper;
     }
 
     private int GetStudentId()
@@ -51,6 +54,15 @@ public class StudentController : ControllerBase
     public async Task<IActionResult> Enroll([FromBody] EnrollRequest request)
     {
         await _enrollmentService.EnrollAsync(GetStudentId(), request.CourseOfferingId);
+        await _loggingHelper.LogOperationAsync(
+    "Created",
+    "Enrollment",
+    null, // ID not returned – modify service to return ID if needed
+    $"StudentId: {GetStudentId()}, CourseOfferingId: {request.CourseOfferingId}",
+    GetCurrentUserId(),
+    GetCurrentUserEmail(),
+    GetCurrentUserRole()
+);
         return Ok(new { message = "Successfully enrolled." });
     }
 
@@ -59,6 +71,15 @@ public class StudentController : ControllerBase
     public async Task<IActionResult> Drop(int enrollmentId)
     {
         await _enrollmentService.DropAsync(GetStudentId(), enrollmentId);
+        await _loggingHelper.LogOperationAsync(
+      "Deleted",
+      "Enrollment",
+      enrollmentId,
+      $"StudentId: {GetStudentId()}, EnrollmentId: {enrollmentId}",
+      GetCurrentUserId(),
+      GetCurrentUserEmail(),
+      GetCurrentUserRole()
+  );
         return Ok(new { message = "Successfully dropped." });
     }
 
@@ -99,6 +120,15 @@ public class StudentController : ControllerBase
     public async Task<IActionResult> SendMessage([FromBody] SendMessageRequest request)
     {
         await _messageService.SendMessageAsync(GetStudentId(), request);
+        await _loggingHelper.LogOperationAsync(
+       "Created",
+       "Message",
+       null, // ID not returned
+       $"Subject: {request.Subject}, To: Advisor",
+       GetCurrentUserId(),
+       GetCurrentUserEmail(),
+       GetCurrentUserRole()
+   );
         return Ok(new { message = "Message sent to advisor." });
     }
 
@@ -107,6 +137,15 @@ public class StudentController : ControllerBase
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
     {
         await _profileService.UpdateProfileAsync(GetStudentId(), request);
+        await _loggingHelper.LogOperationAsync(
+        "Updated",
+        "Profile",
+        GetStudentId(),
+        $"New Name: {request.FirstName} {request.LastName}",
+        GetCurrentUserId(),
+        GetCurrentUserEmail(),
+        GetCurrentUserRole()
+    );
         return Ok(new { message = "Profile updated successfully." });
     }
 }

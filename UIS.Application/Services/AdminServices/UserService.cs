@@ -11,12 +11,12 @@ namespace UIS.Application.Services.AdminServices;
 public class UserService : IUserService
 {
     private readonly IUnitOfWork _unitOfWork;         // ✅ Direct access to DB
-    private readonly LoggingHelper _loggingHelper;
+   
 
-    public UserService(IUnitOfWork unitOfWork, LoggingHelper loggingHelper)
+    public UserService(IUnitOfWork unitOfWork)
     {
         _unitOfWork = unitOfWork;
-        _loggingHelper = loggingHelper;
+       
     }
 
     public async Task<UserResponse> CreateStudentAsync(CreateStudentRequest request)
@@ -47,8 +47,6 @@ public class UserService : IUserService
         await _unitOfWork.Repository<Student>().AddAsync(user);
         await _unitOfWork.SaveChangesAsync();
 
-        // 5. Log
-        await _loggingHelper.LogOperationAsync("Created", "Student", user.Id, $"Email: {user.Email}");
 
         // 6. Return DTO
         return new UserResponse
@@ -93,9 +91,7 @@ public class UserService : IUserService
         await _unitOfWork.Repository<Student>().AddAsync(user);
         await _unitOfWork.SaveChangesAsync();
 
-        // 5. Log
-        await _loggingHelper.LogOperationAsync("Created", "Instructor", user.Id, $"Email: {user.Email}");
-
+    
         // 6. Return DTO
         return new UserResponse
         {

@@ -8,7 +8,7 @@ namespace UIS.Application.Abstractions.AdminAbstractions
     public interface ISemesterService
     {
 
-      Task OpenSemesterAsync(CreateSemesterRequest request);
-      Task UpdateRegistrationCalenderAsync(int semesterId, UpdateSemesterRequest request);
+      Task<int> OpenSemesterAsync(CreateSemesterRequest request);
+      Task<int> UpdateRegistrationCalenderAsync(int semesterId, UpdateSemesterRequest request);
     }
 }

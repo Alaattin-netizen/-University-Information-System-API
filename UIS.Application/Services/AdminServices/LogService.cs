@@ -37,4 +37,26 @@ public class LogService : ILogService
             IpAddress = l.IpAddress
         });
     }
+
+    public async Task<IEnumerable<UserOperationResponse>> GetAllLogsAsync()
+    {
+        var logs = await _unitOfWork.Repository<AuditLog>()
+            .GetQueryable()
+            .OrderByDescending(l => l.Timestamp)
+            .ToListAsync();
+
+        return logs.Select(l => new UserOperationResponse
+        {
+            Id = l.Id,
+            UserId = l.UserId,
+            UserEmail = l.UserEmail,
+            UserRole = l.UserRole,
+            Action = l.Action,
+            EntityType = l.EntityType,
+            EntityId = l.EntityId,
+            Details = l.Details,
+            Timestamp = l.Timestamp,
+            IpAddress = l.IpAddress
+        });
+    }
 }
