@@ -1,7 +1,6 @@
 ﻿using UIS.Application.Abstractions.StudentAbstractions;
 using UIS.Application.DTOs.Student.Messages;
 using UIS.Domain.Entities;
-using UIS.Domain.Entities.Users;
 using UIS.Infrastructure.Repositories;
 
 namespace UIS.Application.Services.StudentServices;
@@ -18,7 +17,7 @@ public class MessageService : IMessageService
 
     public async Task SendMessageAsync(int studentId, SendMessageRequest request)
     {
-        var studentRepo = _unitOfWork.Repository<Student>();
+        var studentRepo = _unitOfWork.Repository<User>();
         var student = await studentRepo.GetByIdAsync(studentId);
 
         if (student == null) throw new Exception("Student not found.");

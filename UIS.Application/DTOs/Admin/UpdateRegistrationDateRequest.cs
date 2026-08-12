@@ -2,12 +2,8 @@
 
 namespace UIS.Application.DTOs.Admin;
 
-public class UpdateSemesterRequest
+public class UpdateRegistrationDateRequest
 {
-    public int Id { get; set; }
-    public string Name { get; set; }
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
     public DateTime RegistrationStart { get; set; }
     public DateTime RegistrationEnd { get; set; }
     public bool IsActive { get; set; }

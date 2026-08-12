@@ -1,6 +1,6 @@
 ﻿using UIS.Application.Abstractions.StudentAbstractions;
 using UIS.Application.DTOs.Student.Profile;
-using UIS.Domain.Entities.Users;
+using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 
 namespace UIS.Application.Services.StudentServices;
@@ -16,7 +16,7 @@ public class ProfileService : IProfileService
 
     public async Task UpdateProfileAsync(int studentId, UpdateProfileRequest request)
     {
-        var repo = _unitOfWork.Repository<Student>();
+        var repo = _unitOfWork.Repository<User>();
         var student = await repo.GetByIdAsync(studentId);
 
         if (student == null) throw new Exception("Student not found.");

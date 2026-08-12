@@ -12,8 +12,8 @@ using UIS.Infrastructure.Data;
 namespace UIS.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260811115929_AddAuditLog")]
-    partial class AddAuditLog
+    [Migration("20260812114820_AddRolesAndNewSchema")]
+    partial class AddRolesAndNewSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -45,9 +45,6 @@ namespace UIS.Infrastructure.Migrations
 
                     b.Property<int>("InstructorId")
                         .HasColumnType("int");
-
-                    b.Property<DateTime?>("PublishDate")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -137,6 +134,8 @@ namespace UIS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("AuditLogs");
                 });
@@ -239,7 +238,7 @@ namespace UIS.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("FacultyId")
+                    b.Property<int>("FacultyId")
                         .HasColumnType("int");
 
                     b.Property<string>("Name")
@@ -301,8 +300,7 @@ namespace UIS.Infrastructure.Migrations
                     b.HasIndex("CourseOfferingId");
 
                     b.HasIndex("StudentId", "CourseOfferingId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_Enrollment_Student_Course");
+                        .IsUnique();
 
                     b.ToTable("Enrollments");
                 });
@@ -373,6 +371,51 @@ namespace UIS.Infrastructure.Migrations
                     b.ToTable("Messages");
                 });
 
+            modelBuilder.Entity("UIS.Domain.Entities.Role", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Roles");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Description = "Full system access",
+                            Name = "Admin"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Description = "Teaches courses",
+                            Name = "Instructor"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Description = "Enrolls in courses",
+                            Name = "Student"
+                        });
+                });
+
             modelBuilder.Entity("UIS.Domain.Entities.Semester", b =>
                 {
                     b.Property<int>("Id")
@@ -406,13 +449,19 @@ namespace UIS.Infrastructure.Migrations
                     b.ToTable("Semesters");
                 });
 
-            modelBuilder.Entity("UIS.Domain.Entities.Users.User", b =>
+            modelBuilder.Entity("UIS.Domain.Entities.User", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AdvisorId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -433,61 +482,40 @@ namespace UIS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("Role")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("Email")
-                        .IsUnique();
-
-                    b.ToTable("Users");
-
-                    b.HasDiscriminator<int>("Role");
-
-                    b.UseTphMappingStrategy();
-                });
-
-            modelBuilder.Entity("UIS.Domain.Entities.Admin", b =>
-                {
-                    b.HasBaseType("UIS.Domain.Entities.Users.User");
-
-                    b.HasDiscriminator().HasValue(3);
-                });
-
-            modelBuilder.Entity("UIS.Domain.Entities.Instructor", b =>
-                {
-                    b.HasBaseType("UIS.Domain.Entities.Users.User");
-
-                    b.Property<int?>("DepartmentId")
-                        .HasColumnType("int");
-
-                    b.HasIndex("DepartmentId");
-
-                    b.ToTable("Users", t =>
-                        {
-                            t.Property("DepartmentId")
-                                .HasColumnName("Instructor_DepartmentId");
-                        });
-
-                    b.HasDiscriminator().HasValue(2);
-                });
-
-            modelBuilder.Entity("UIS.Domain.Entities.Users.Student", b =>
-                {
-                    b.HasBaseType("UIS.Domain.Entities.Users.User");
-
-                    b.Property<int?>("AdvisorId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("DepartmentId")
-                        .HasColumnType("int");
 
                     b.HasIndex("AdvisorId");
 
                     b.HasIndex("DepartmentId");
 
-                    b.HasDiscriminator().HasValue(1);
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("UIS.Domain.Entities.UserRole", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoleId");
+
+                    b.HasIndex("UserId", "RoleId")
+                        .IsUnique();
+
+                    b.ToTable("UserRoles");
                 });
 
             modelBuilder.Entity("UIS.Domain.Entities.Announcement", b =>
@@ -495,13 +523,13 @@ namespace UIS.Infrastructure.Migrations
                     b.HasOne("UIS.Domain.Entities.CourseOffering", "CourseOffering")
                         .WithMany("Announcements")
                         .HasForeignKey("CourseOfferingId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("UIS.Domain.Entities.Instructor", "Instructor")
+                    b.HasOne("UIS.Domain.Entities.User", "Instructor")
                         .WithMany()
                         .HasForeignKey("InstructorId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("CourseOffering");
@@ -517,7 +545,7 @@ namespace UIS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("UIS.Domain.Entities.Users.Student", "Student")
+                    b.HasOne("UIS.Domain.Entities.User", "Student")
                         .WithMany()
                         .HasForeignKey("StudentId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -528,11 +556,23 @@ namespace UIS.Infrastructure.Migrations
                     b.Navigation("Student");
                 });
 
+            modelBuilder.Entity("UIS.Domain.Entities.AuditLog", b =>
+                {
+                    b.HasOne("UIS.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("UIS.Domain.Entities.Course", b =>
                 {
                     b.HasOne("UIS.Domain.Entities.Department", "Department")
                         .WithMany("Courses")
-                        .HasForeignKey("DepartmentId");
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("UIS.Domain.Entities.Course", "PrerequisiteCourse")
                         .WithMany()
@@ -552,8 +592,8 @@ namespace UIS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("UIS.Domain.Entities.Instructor", "Instructor")
-                        .WithMany("CourseOfferings")
+                    b.HasOne("UIS.Domain.Entities.User", "Instructor")
+                        .WithMany()
                         .HasForeignKey("InstructorId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -575,7 +615,9 @@ namespace UIS.Infrastructure.Migrations
                 {
                     b.HasOne("UIS.Domain.Entities.Faculty", "Faculty")
                         .WithMany("Departments")
-                        .HasForeignKey("FacultyId");
+                        .HasForeignKey("FacultyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Faculty");
                 });
@@ -588,8 +630,8 @@ namespace UIS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("UIS.Domain.Entities.Users.Student", "Student")
-                        .WithMany("Enrollments")
+                    b.HasOne("UIS.Domain.Entities.User", "Student")
+                        .WithMany()
                         .HasForeignKey("StudentId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -601,14 +643,14 @@ namespace UIS.Infrastructure.Migrations
 
             modelBuilder.Entity("UIS.Domain.Entities.Message", b =>
                 {
-                    b.HasOne("UIS.Domain.Entities.Instructor", "Receiver")
+                    b.HasOne("UIS.Domain.Entities.User", "Receiver")
                         .WithMany()
                         .HasForeignKey("ReceiverInstructorId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("UIS.Domain.Entities.Users.Student", "Sender")
-                        .WithMany("Messages")
+                    b.HasOne("UIS.Domain.Entities.User", "Sender")
+                        .WithMany()
                         .HasForeignKey("SenderStudentId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -618,31 +660,40 @@ namespace UIS.Infrastructure.Migrations
                     b.Navigation("Sender");
                 });
 
-            modelBuilder.Entity("UIS.Domain.Entities.Instructor", b =>
+            modelBuilder.Entity("UIS.Domain.Entities.User", b =>
                 {
-                    b.HasOne("UIS.Domain.Entities.Department", "Department")
-                        .WithMany("Instructors")
-                        .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Department");
-                });
-
-            modelBuilder.Entity("UIS.Domain.Entities.Users.Student", b =>
-                {
-                    b.HasOne("UIS.Domain.Entities.Instructor", "Advisor")
-                        .WithMany("Advisees")
+                    b.HasOne("UIS.Domain.Entities.User", "Advisor")
+                        .WithMany()
                         .HasForeignKey("AdvisorId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("UIS.Domain.Entities.Department", "Department")
-                        .WithMany("Students")
+                        .WithMany("Users")
                         .HasForeignKey("DepartmentId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Advisor");
 
                     b.Navigation("Department");
+                });
+
+            modelBuilder.Entity("UIS.Domain.Entities.UserRole", b =>
+                {
+                    b.HasOne("UIS.Domain.Entities.Role", "Role")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UIS.Domain.Entities.User", "User")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Role");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("UIS.Domain.Entities.Course", b =>
@@ -663,9 +714,7 @@ namespace UIS.Infrastructure.Migrations
                 {
                     b.Navigation("Courses");
 
-                    b.Navigation("Instructors");
-
-                    b.Navigation("Students");
+                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("UIS.Domain.Entities.Faculty", b =>
@@ -673,23 +722,19 @@ namespace UIS.Infrastructure.Migrations
                     b.Navigation("Departments");
                 });
 
+            modelBuilder.Entity("UIS.Domain.Entities.Role", b =>
+                {
+                    b.Navigation("UserRoles");
+                });
+
             modelBuilder.Entity("UIS.Domain.Entities.Semester", b =>
                 {
                     b.Navigation("CourseOfferings");
                 });
 
-            modelBuilder.Entity("UIS.Domain.Entities.Instructor", b =>
+            modelBuilder.Entity("UIS.Domain.Entities.User", b =>
                 {
-                    b.Navigation("Advisees");
-
-                    b.Navigation("CourseOfferings");
-                });
-
-            modelBuilder.Entity("UIS.Domain.Entities.Users.Student", b =>
-                {
-                    b.Navigation("Enrollments");
-
-                    b.Navigation("Messages");
+                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }

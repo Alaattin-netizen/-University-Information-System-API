@@ -2,7 +2,7 @@
 
 namespace UIS.Application.Abstractions.InstructorAbstractions;
 
-public interface IStudentService  // ✅ MUST be public
+public interface IStudentService  
 {
     Task EnterGradesAsync(int instructorId, GradeEntryRequest request);
     Task EnterAttendanceAsync(int instructorId, AttendanceEntryRequest request);

@@ -2,9 +2,7 @@
 using UIS.Application.Abstractions.InstructorAbstractions;
 using UIS.Application.DTOs.Instructor;
 using UIS.Domain.Entities;
-using UIS.Domain.Entities.Users;
 using UIS.Infrastructure.Repositories;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace UIS.Application.Services.InstructorServices;
 
 public class StudentService : IStudentService

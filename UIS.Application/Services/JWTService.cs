@@ -3,7 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using UIS.Application.Abstractions.StudentAbstractions;
+using UIS.Application.Abstractions;
 
 namespace UIS.Application.Services;
 
@@ -16,7 +16,7 @@ public class JwtService : IJwtService
         _configuration = configuration;
     }
 
-    public string GenerateToken(int userId, string email, string role)
+    public string GenerateToken(int userId, string email, List<string> roles)
     {
         var secret = _configuration["JwtSettings:Secret"]
             ?? throw new InvalidOperationException("JWT Secret not configured");
@@ -27,12 +27,15 @@ public class JwtService : IJwtService
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-            new Claim(ClaimTypes.Email, email),
-            new Claim(ClaimTypes.Role, role)
+            new Claim(ClaimTypes.Email, email)  
         };
+        foreach (var role in roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
 
         var token = new JwtSecurityToken(
             issuer: issuer,

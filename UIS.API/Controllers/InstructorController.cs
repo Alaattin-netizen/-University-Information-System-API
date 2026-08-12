@@ -58,7 +58,7 @@ public class InstructorController : BaseApiController
         $"Title: {request.Title}, CourseOfferingId: {request.CourseOfferingId}",
         GetCurrentUserId(),
         GetCurrentUserEmail(),
-        GetCurrentUserRole()
+        GetCurrentUserRoles()
     );
         return Ok(new { message = "Announcement created successfully." });
     }
@@ -75,7 +75,7 @@ public class InstructorController : BaseApiController
      $"Instructor: {GetCurrentUserEmail()}, EnrollmentId: {request.EnrollmentId}",
      GetCurrentUserId(),
      GetCurrentUserEmail(),
-     GetCurrentUserRole()
+     GetCurrentUserRoles()
  );
         return Ok(new { message = "Grades entered successfully." });
     }
@@ -92,7 +92,7 @@ public class InstructorController : BaseApiController
      $"Date: {request.Date:yyyy-MM-dd}, Present: {request.IsPresent}",
      GetCurrentUserId(),
      GetCurrentUserEmail(),
-     GetCurrentUserRole()
+     GetCurrentUserRoles()
  );
         return Ok(new { message = "Attendance entered successfully." });
     }

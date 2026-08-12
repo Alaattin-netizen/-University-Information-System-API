@@ -1,14 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using UIS.Application.DTOs.Admin;
+﻿using UIS.Application.DTOs.Admin;
 
-namespace UIS.Application.Abstractions.AdminAbstractions
+public interface ISemesterService
 {
-    public interface ISemesterService
-    {
-
-      Task<int> OpenSemesterAsync(CreateSemesterRequest request);
-      Task<int> UpdateRegistrationCalenderAsync(int semesterId, UpdateSemesterRequest request);
-    }
+    Task<int> OpenSemesterAsync(CreateSemesterRequest request);
+    Task<SemesterResponse> CreateSemesterAsync(CreateSemesterRequest request);
+    Task<SemesterResponse> UpdateSemesterAsync(UpdateSemesterRequest request);
+    Task DeleteSemesterAsync(int id);
+    Task<SemesterResponse> GetSemesterByIdAsync(int id);
+    Task<IEnumerable<SemesterResponse>> GetAllSemestersAsync();
+    Task<SemesterResponse> UpdateRegistrationCalendarAsync(int semesterId, UpdateRegistrationDateRequest request); // ✅ Changed parameter type
 }

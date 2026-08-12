@@ -1,17 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using UIS.Application.DTOs.Admin;
+﻿using UIS.Application.DTOs.Admin;
 
-
-namespace UIS.Application.Abstractions.AdminAbstractions
+public interface IFacultyService
 {
-    public interface IFacultyService
-    {
-        Task<FacultyResponse> CreateFacultyAsync(CreateFacultyRequest request);
-        Task<DepartmentResponse> CreateDepartmentAsync( CreateDepartmentRequest request);
+    // Faculty
+    Task<FacultyResponse> CreateFacultyAsync(CreateFacultyRequest request);
+    Task<FacultyResponse> UpdateFacultyAsync(UpdateFacultyRequest request);
+    Task DeleteFacultyAsync(int id);
+    Task<FacultyResponse> GetFacultyByIdAsync(int id);
+    Task<IEnumerable<FacultyResponse>> GetAllFacultiesAsync(); // ✅ Added
 
-        Task<CourseResponse> CreateCourseAsync( CreateCourseRequest request);
+    // Department
+    Task<DepartmentResponse> CreateDepartmentAsync(CreateDepartmentRequest request);
+    Task<DepartmentResponse> UpdateDepartmentAsync(UpdateDepartmentRequest request);
+    Task DeleteDepartmentAsync(int id);
+    Task<DepartmentResponse> GetDepartmentByIdAsync(int id);
+    Task<IEnumerable<DepartmentResponse>> GetAllDepartmentsAsync(); // ✅ Added
 
-    }
+    // Course
+    Task<CourseResponse> CreateCourseAsync(CreateCourseRequest request);
+    Task<CourseResponse> UpdateCourseAsync(UpdateCourseRequest request);
+    Task DeleteCourseAsync(int id);
+    Task<CourseResponse> GetCourseByIdAsync(int id);
+    Task<IEnumerable<CourseResponse>> GetAllCoursesAsync(); // ✅ Added
 }

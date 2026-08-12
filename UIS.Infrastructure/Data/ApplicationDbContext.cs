@@ -1,157 +1,192 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using UIS.Domain.Entities;
-using UIS.Domain.Entities.Users;
-using UIS.Domain.Enums;
 
 namespace UIS.Infrastructure.Data;
 
 public class ApplicationDbContext : DbContext
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-        : base(options)
-    {
-    }
+        : base(options) { }
 
-    // DbSets for all your entities
     public DbSet<User> Users { get; set; }
-    public DbSet<Student> Students { get; set; }
-    public DbSet<Instructor> Instructors { get; set; }
-    public DbSet<Admin> Admins { get; set; }
+    public DbSet<Role> Roles { get; set; }
+    public DbSet<UserRole> UserRoles { get; set; }
     public DbSet<Faculty> Faculties { get; set; }
     public DbSet<Department> Departments { get; set; }
     public DbSet<Course> Courses { get; set; }
-    public DbSet<CourseOffering> CourseOfferings { get; set; }
     public DbSet<Semester> Semesters { get; set; }
+    public DbSet<CourseOffering> CourseOfferings { get; set; }
     public DbSet<Enrollment> Enrollments { get; set; }
     public DbSet<Attendance> Attendances { get; set; }
     public DbSet<Announcement> Announcements { get; set; }
     public DbSet<Message> Messages { get; set; }
-
     public DbSet<AuditLog> AuditLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<Role>().HasData(
+    new Role { Id = 1, Name = "Admin", Description = "Full system access" },
+    new Role { Id = 2, Name = "Instructor", Description = "Teaches courses" },
+    new Role { Id = 3, Name = "Student", Description = "Enrolls in courses" }
+);
 
-        // --- 1. Configure Inheritance (TPH) ---
-        modelBuilder.Entity<User>()
-            .HasDiscriminator(u => u.Role)
-            .HasValue<Student>(Role.Student)
-            .HasValue<Instructor>(Role.Instructor)
-            .HasValue<Admin>(Role.Admin);
-
-        // --- 2. Unique Constraints ---
+        // --- Users ---
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
 
-        modelBuilder.Entity<Course>()
-            .HasIndex(c => c.Code)
+        // --- UserRole (Many-to-Many) ---
+        modelBuilder.Entity<UserRole>(entity =>
+        {
+            entity.HasKey(ur => ur.Id);
+
+            entity.HasOne(ur => ur.User)
+                .WithMany(u => u.UserRoles)
+                .HasForeignKey(ur => ur.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(ur => ur.Role)
+                .WithMany(r => r.UserRoles)
+                .HasForeignKey(ur => ur.RoleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(ur => new { ur.UserId, ur.RoleId })
+                .IsUnique();
+        });
+
+        // --- Roles ---
+        modelBuilder.Entity<Role>()
+            .HasIndex(r => r.Name)
             .IsUnique();
 
-        // --- 3. Configure Relationships ---
-
-        // Student -> Department (Restrict to avoid cascade paths)
-        modelBuilder.Entity<Student>()
-            .HasOne(s => s.Department)
-            .WithMany(d => d.Students)
-            .HasForeignKey(s => s.DepartmentId)
+        // --- User -> Advisor (Self-reference) ---
+        modelBuilder.Entity<User>()
+            .HasOne(u => u.Advisor)
+            .WithMany() // No navigation property on the other side
+            .HasForeignKey(u => u.AdvisorId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Instructor -> Department (Restrict to avoid cascade paths)
-        modelBuilder.Entity<Instructor>()
-            .HasOne(i => i.Department)
-            .WithMany(d => d.Instructors)
-            .HasForeignKey(i => i.DepartmentId)
+        // --- User -> Department ---
+        modelBuilder.Entity<User>()
+            .HasOne(u => u.Department)
+            .WithMany(d => d.Users) // ✅ Department has Users collection
+            .HasForeignKey(u => u.DepartmentId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Student -> Advisor (Instructor)
-        modelBuilder.Entity<Student>()
-            .HasOne(s => s.Advisor)
-            .WithMany(a => a.Advisees)
-            .HasForeignKey(s => s.AdvisorId)
+        // --- Department -> Faculty ---
+        modelBuilder.Entity<Department>()
+            .HasOne(d => d.Faculty)
+            .WithMany(f => f.Departments)
+            .HasForeignKey(d => d.FacultyId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Course -> PrerequisiteCourse (Self-referencing)
+        // --- Course -> Department ---
+        modelBuilder.Entity<Course>()
+            .HasOne(c => c.Department)
+            .WithMany(d => d.Courses)
+            .HasForeignKey(c => c.DepartmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // --- Course -> Prerequisite (Self-reference) ---
         modelBuilder.Entity<Course>()
             .HasOne(c => c.PrerequisiteCourse)
             .WithMany()
             .HasForeignKey(c => c.PrerequisiteCourseId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // CourseOffering -> Course
+        // --- Course -> Code unique ---
+        modelBuilder.Entity<Course>()
+            .HasIndex(c => c.Code)
+            .IsUnique();
+
+        // --- CourseOffering -> Course ---
         modelBuilder.Entity<CourseOffering>()
             .HasOne(co => co.Course)
             .WithMany(c => c.Offerings)
             .HasForeignKey(co => co.CourseId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // CourseOffering -> Instructor
+        // --- CourseOffering -> Instructor (User) ---
         modelBuilder.Entity<CourseOffering>()
             .HasOne(co => co.Instructor)
-            .WithMany(i => i.CourseOfferings)
+            .WithMany() // Instructors don't need a collection of offerings (optional)
             .HasForeignKey(co => co.InstructorId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // CourseOffering -> Semester
+        // --- CourseOffering -> Semester ---
         modelBuilder.Entity<CourseOffering>()
             .HasOne(co => co.Semester)
             .WithMany(s => s.CourseOfferings)
             .HasForeignKey(co => co.SemesterId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // --- 4. Enrollment Configuration ---
+        // --- Enrollment ---
         modelBuilder.Entity<Enrollment>(entity =>
         {
             entity.HasIndex(e => new { e.StudentId, e.CourseOfferingId })
-                  .IsUnique()
-                  .HasDatabaseName("IX_Enrollment_Student_Course");
-
-            entity.Property(e => e.LetterGrade).HasMaxLength(2);
+                .IsUnique();
 
             entity.HasOne(e => e.Student)
-                  .WithMany(s => s.Enrollments)
-                  .HasForeignKey(e => e.StudentId)
-                  .OnDelete(DeleteBehavior.Restrict);
+                .WithMany() // Students don't need a collection of enrollments (optional)
+                .HasForeignKey(e => e.StudentId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(e => e.CourseOffering)
-                  .WithMany(co => co.Enrollments)
-                  .HasForeignKey(e => e.CourseOfferingId)
-                  .OnDelete(DeleteBehavior.Restrict);
+                .WithMany(co => co.Enrollments)
+                .HasForeignKey(e => e.CourseOfferingId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // --- 5. Attendance Configuration ---
+        // --- Attendance ---
         modelBuilder.Entity<Attendance>(entity =>
         {
             entity.HasOne(a => a.Student)
-                  .WithMany() // No navigation property on Student for Attendance
-                  .HasForeignKey(a => a.StudentId)
-                  .OnDelete(DeleteBehavior.Restrict);
+                .WithMany()
+                .HasForeignKey(a => a.StudentId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(a => a.CourseOffering)
-                  .WithMany(co => co.Attendances)
-                  .HasForeignKey(a => a.CourseOfferingId)
-                  .OnDelete(DeleteBehavior.Restrict);
+                .WithMany(co => co.Attendances)
+                .HasForeignKey(a => a.CourseOfferingId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // --- 6. Announcement ---
-        modelBuilder.Entity<Announcement>()
-            .HasOne(a => a.CourseOffering)
-            .WithMany(co => co.Announcements)
-            .HasForeignKey(a => a.CourseOfferingId)
-            .OnDelete(DeleteBehavior.Cascade);
+        // --- Announcement ---
+        modelBuilder.Entity<Announcement>(entity =>
+        {
+            entity.HasOne(a => a.CourseOffering)
+                .WithMany(co => co.Announcements)
+                .HasForeignKey(a => a.CourseOfferingId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-        // --- 7. Message ---
-        modelBuilder.Entity<Message>()
-            .HasOne(m => m.Sender)
-            .WithMany(s => s.Messages)
-            .HasForeignKey(m => m.SenderStudentId)
-            .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(a => a.Instructor)
+                .WithMany()
+                .HasForeignKey(a => a.InstructorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
 
-        modelBuilder.Entity<Message>()
-            .HasOne(m => m.Receiver)
-            .WithMany() // No navigation property on Instructor for received messages
-            .HasForeignKey(m => m.ReceiverInstructorId)
-            .OnDelete(DeleteBehavior.Restrict);
+        // --- Message ---
+        modelBuilder.Entity<Message>(entity =>
+        {
+            entity.HasOne(m => m.Sender)
+                .WithMany()
+                .HasForeignKey(m => m.SenderStudentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(m => m.Receiver)
+                .WithMany()
+                .HasForeignKey(m => m.ReceiverInstructorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // --- AuditLog ---
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.HasOne(al => al.User)
+                .WithMany()
+                .HasForeignKey(al => al.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
     }
 }

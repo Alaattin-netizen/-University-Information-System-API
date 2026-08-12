@@ -25,21 +25,23 @@ public class AuthController : BaseApiController
         try
         {
             var result = await _authService.LoginAsync(request);
-            // Log success
+
+            // ✅ Log success using the result data (not HttpContext.User)
             await _loggingHelper.LogOperationAsync(
                 "LoggedIn",
                 "User",
                 result.UserId,
-                $"Email: {result.Email}, Role: {result.Role}",
-                result.UserId, // user is now authenticated
+                $"Logged in",
+                result.UserId,
                 result.Email,
-                result.Role.ToString()
+                result.Roles // List<string>
             );
+
             return Ok(result);
         }
         catch (UnauthorizedAccessException ex)
         {
-            // Optionally log failed login attempts (without user info)
+            // Log failed login attempt
             await _loggingHelper.LogOperationAsync(
                 "LoginFailed",
                 "User",
@@ -47,24 +49,44 @@ public class AuthController : BaseApiController
                 $"Email: {request.Email}",
                 0,
                 "Unknown",
-                "Unknown"
+                new List<string>() // no roles
             );
+
             return Unauthorized(new { message = ex.Message });
         }
     }
 
-    //[HttpPost("register")]
-    //public async Task<IActionResult> Register([FromBody] RegisterRequest request)
-    //{
-    //    try
-    //    {
-    //        var result = await _authService.RegisterAsync(request);
-    //        return Ok(result);
-    //    }
-    //    catch (InvalidOperationException ex)
-    //    {
-    //        return BadRequest(new { message = ex.Message });
-    //    }
-    //}
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    {
+        try
+        {
+            var result = await _authService.RegisterAsync(request);
+            await _loggingHelper.LogOperationAsync(
+                "LoggedIn",
+                "User",
+                result.UserId,
+                $"Registered",
+                result.UserId,
+                result.Email,
+                result.Roles // List<string>
+            );
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Log failed registration attempt
+            await _loggingHelper.LogOperationAsync(
+                "RegisterFailed",
+                "User",
+                null,
+                $"Email: {request.Email}",
+                0,
+                "Unknown",
+                new List<string>() // no roles
+            );
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 
 }

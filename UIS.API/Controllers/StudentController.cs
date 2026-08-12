@@ -61,8 +61,7 @@ public class StudentController : BaseApiController
     $"StudentId: {GetStudentId()}, CourseOfferingId: {request.CourseOfferingId}",
     GetCurrentUserId(),
     GetCurrentUserEmail(),
-    GetCurrentUserRole()
-);
+    GetCurrentUserRoles());
         return Ok(new { message = "Successfully enrolled." });
     }
 
@@ -78,7 +77,7 @@ public class StudentController : BaseApiController
       $"StudentId: {GetStudentId()}, EnrollmentId: {enrollmentId}",
       GetCurrentUserId(),
       GetCurrentUserEmail(),
-      GetCurrentUserRole()
+      GetCurrentUserRoles()
   );
         return Ok(new { message = "Successfully dropped." });
     }
@@ -127,7 +126,7 @@ public class StudentController : BaseApiController
        $"Subject: {request.Subject}, To: Advisor",
        GetCurrentUserId(),
        GetCurrentUserEmail(),
-       GetCurrentUserRole()
+       GetCurrentUserRoles()
    );
         return Ok(new { message = "Message sent to advisor." });
     }
@@ -144,7 +143,7 @@ public class StudentController : BaseApiController
         $"New Name: {request.FirstName} {request.LastName}",
         GetCurrentUserId(),
         GetCurrentUserEmail(),
-        GetCurrentUserRole()
+        GetCurrentUserRoles()
     );
         return Ok(new { message = "Profile updated successfully." });
     }

@@ -4,20 +4,20 @@ namespace UIS.Domain.Entities;
 
 public class CourseOffering 
 {
-    [Key] public int Id { get; set; }
+    [Key] public int Id { get; set; }  
     public int CourseId { get; set; }
     public virtual Course Course { get; set; }
 
     public int InstructorId { get; set; }
-    public virtual Instructor Instructor { get; set; }
+    public virtual User Instructor { get; set; } // ✅ Instructor is a User with role "Instructor"
 
     public int SemesterId { get; set; }
     public virtual Semester Semester { get; set; }
 
-    // Schedule details
-    public DayOfWeek Day { get; set; } // Use System.DayOfWeek
+    public DayOfWeek Day { get; set; }
     public TimeSpan StartTime { get; set; }
     public TimeSpan EndTime { get; set; }
+
     [MaxLength(50)]
     public string Classroom { get; set; }
 

@@ -23,13 +23,24 @@ public class LoggingHelper
      string? details = null,
      int userId = 0,
      string userEmail = "Unknown",
-     string userRole = "Unknown")
+     List<string> userRoles = null) // ✅ Now accepts a list
     {
+        // If userRoles is null, extract from HttpContext
+        if (userRoles == null || !userRoles.Any())
+        {
+            userRoles = _httpContextAccessor.HttpContext?.User
+                .FindAll(ClaimTypes.Role)
+                .Select(c => c.Value)
+                .ToList() ?? new List<string>();
+        }
+
+        var rolesString = string.Join(",", userRoles); // Store as comma-separated string in DB
+
         var log = new AuditLog
         {
             UserId = userId,
             UserEmail = userEmail,
-            UserRole = userRole,
+            UserRole = rolesString, // ✅ Save as string
             Action = action,
             EntityType = entityType,
             EntityId = entityId,

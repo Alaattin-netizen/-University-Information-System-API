@@ -20,13 +20,10 @@ public abstract class BaseApiController : ControllerBase
                ?? "Unknown";
     }
 
-    protected string GetCurrentUserRole()
+    protected List<string> GetCurrentUserRoles()
     {
-        return User.FindFirst(ClaimTypes.Role)?.Value
-               ?? User.FindFirst("role")?.Value
-               ?? "Unknown";
+        return User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
     }
-
     protected string GetClientIp()
     {
         return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
