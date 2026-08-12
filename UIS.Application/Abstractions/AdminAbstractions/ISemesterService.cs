@@ -1,4 +1,4 @@
-﻿using UIS.Application.DTOs.Admin;
+﻿using UIS.Application.DTOs.Admin.Semester;
 
 public interface ISemesterService
 {

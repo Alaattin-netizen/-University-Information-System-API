@@ -1,9 +1,15 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UIS.Application.Abstractions.AdminAbstractions;
-using UIS.Application.DTOs.Admin;
-
+using UIS.Application.DTOs.Admin.AuditLog;
+using UIS.Application.DTOs.Admin.Course;
+using UIS.Application.DTOs.Admin.Department;
+using UIS.Application.DTOs.Admin.Faculty;
+using UIS.Application.DTOs.Admin.Semester;
+using UIS.Application.DTOs.Admin.User;
+using UIS.Application.DTOs.Admin.UserRole;
 using UIS.Application.Services;
+using UIS.Application.Services.AdminServices;
 
 namespace UIS.API.Controllers;
 
@@ -16,18 +22,24 @@ public class AdminController : BaseApiController
     private readonly IUserService _userService;
     private readonly ISemesterService _semesterService;
     private readonly ILogService _logService;
+    private readonly IAuditLogService _auditLogService;
+    private readonly IUserRoleService _userRoleService;
     private readonly LoggingHelper _loggingHelper;
 
     public AdminController(
         IFacultyService facultyService,
         IUserService userService,
         ISemesterService semesterService,
+        IAuditLogService auditLogService,
+        IUserRoleService userRoleService,
         ILogService logService,
         LoggingHelper loggingHelper)
     {
         _facultyService = facultyService;
         _userService = userService;
         _semesterService = semesterService;
+        _auditLogService = auditLogService;
+        _userRoleService = userRoleService;
         _logService = logService;
         _loggingHelper = loggingHelper;
     }
@@ -414,6 +426,30 @@ public class AdminController : BaseApiController
     // AUDIT LOGS
     // ======================================================
 
+    [HttpPost("audit-logs")]
+    public async Task<IActionResult> CreateAuditLog([FromBody] CreateAuditLogRequest request)
+    {
+        var result = await _auditLogService.CreateAsync(request);
+        await _loggingHelper.LogOperationAsync("Created", "AuditLog", result.Id, $"Action: {request.Action}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return Ok(result);
+    }
+
+    [HttpPut("audit-logs")]
+    public async Task<IActionResult> UpdateAuditLog([FromBody] UpdateAuditLogRequest request)
+    {
+        var result = await _auditLogService.UpdateAsync(request);
+        await _loggingHelper.LogOperationAsync("Updated", "AuditLog", result.Id, $"ID: {result.Id}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return Ok(result);
+    }
+
+    [HttpDelete("audit-logs/{id}")]
+    public async Task<IActionResult> DeleteAuditLog(int id)
+    {
+        await _auditLogService.DeleteAsync(id);
+        await _loggingHelper.LogOperationAsync("Deleted", "AuditLog", id, $"ID: {id}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return NoContent();
+    }
+
     [HttpGet("logs")]
     public async Task<IActionResult> GetAllLogs()
     {
@@ -421,10 +457,55 @@ public class AdminController : BaseApiController
         return Ok(result);
     }
 
+
+
     [HttpGet("logs/user/{userId}")]
     public async Task<IActionResult> GetUserLogs(int userId)
     {
         var result = await _logService.GetLogsAsync(userId);
         return Ok(result);
+    }
+
+    // ======================================================
+    // USER ROLES
+    // ======================================================
+    [HttpGet("user-roles")]
+    public async Task<IActionResult> GetAllUserRoles()
+    {
+        return Ok(await _userRoleService.GetAllAsync());
+    }
+
+    [HttpGet("user-roles/{id}")]
+    public async Task<IActionResult> GetUserRoleById(int id)
+    {
+        return Ok(await _userRoleService.GetByIdAsync(id));
+    }
+
+    [HttpGet("user-roles/user/{userId}")]
+    public async Task<IActionResult> GetUserRolesByUser(int userId)
+    {
+        return Ok(await _userRoleService.GetByUserIdAsync(userId));
+    }
+
+    [HttpGet("user-roles/role/{roleId}")]
+    public async Task<IActionResult> GetUserRolesByRole(int roleId)
+    {
+        return Ok(await _userRoleService.GetByRoleIdAsync(roleId));
+    }
+
+    [HttpPost("user-roles/assign")]
+    public async Task<IActionResult> AssignRole([FromBody] AssignRoleRequest request)
+    {
+        var result = await _userRoleService.AssignRoleAsync(request);
+        await _loggingHelper.LogOperationAsync("Assigned", "UserRole", result.Id, $"User: {request.UserId}, Role: {request.RoleId}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return CreatedAtAction(nameof(GetUserRoleById), new { id = result.Id }, result);
+    }
+
+    [HttpDelete("user-roles/remove")]
+    public async Task<IActionResult> RemoveRole([FromBody] RemoveRoleRequest request)
+    {
+        await _userRoleService.RemoveRoleAsync(request);
+        await _loggingHelper.LogOperationAsync("Removed", "UserRole", null, $"User: {request.UserId}, Role: {request.RoleId}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return NoContent();
     }
 }

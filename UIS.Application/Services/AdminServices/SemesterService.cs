@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.AdminAbstractions;
-using UIS.Application.DTOs.Admin;
+using UIS.Application.DTOs.Admin.Semester;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 

@@ -1,7 +1,7 @@
 ﻿using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.AdminAbstractions;
-using UIS.Application.DTOs.Admin;
+using UIS.Application.DTOs.Admin.User;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 

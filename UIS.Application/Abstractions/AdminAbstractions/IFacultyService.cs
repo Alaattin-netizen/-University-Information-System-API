@@ -1,4 +1,6 @@
-﻿using UIS.Application.DTOs.Admin;
+﻿using UIS.Application.DTOs.Admin.Course;
+using UIS.Application.DTOs.Admin.Department;
+using UIS.Application.DTOs.Admin.Faculty;
 
 public interface IFacultyService
 {
