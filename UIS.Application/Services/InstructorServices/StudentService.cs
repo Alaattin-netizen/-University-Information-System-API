@@ -40,28 +40,25 @@ public class StudentService : IStudentService
 
         // Calculate weighted total
         double totalScore = 0;
-        var hasValidGrade = false;
+        if (enrollment.MidtermScore.HasValue)
+            totalScore += (enrollment.MidtermScore.Value * 0.4);
 
-        if (enrollment.MidtermScore.HasValue && enrollment.FinalScore.HasValue)
-        {
-            totalScore = (enrollment.MidtermScore.Value * 0.4) + (enrollment.FinalScore.Value * 0.6);
-            hasValidGrade = true;
-        }
+        if (enrollment.FinalScore.HasValue)
+            totalScore += (enrollment.FinalScore.Value * 0.5);
         else if (enrollment.MakeupScore.HasValue)
-        {
-            totalScore = enrollment.MakeupScore.Value;
-            hasValidGrade = true;
-        }
+            totalScore += enrollment.MakeupScore.Value *0.5;
+        if (enrollment.AssignmentScore.HasValue)
+            totalScore += (enrollment.AssignmentScore.Value * 0.1); 
+      
 
-        if (hasValidGrade)
-        {
+       
             totalScore = Math.Round(totalScore, 2);
             enrollment.TotalScore = totalScore;
 
             var (letterGrade, gradePoint) = GetGradeInfo(totalScore);
             enrollment.LetterGrade = letterGrade;
             enrollment.GradePoint = gradePoint;
-        }
+        
 
         await _unitOfWork.SaveChangesAsync();
        
@@ -130,3 +127,4 @@ public class StudentService : IStudentService
     }
 }
 
+ 

@@ -12,7 +12,7 @@ public class AnnouncementService : IAnnouncementService
 
     public AnnouncementService(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
 
-    public async Task<AnnouncementResponse> CreateAsync(CreateAnnouncementRequest request)
+    public async Task<AnnouncementResponse> CreateAsync(AdminCreateAnnouncementRequest request)
     {
         var offering = await _unitOfWork.Repository<CourseOffering>().GetByIdAsync(request.CourseOfferingId);
         if (offering == null) throw new InvalidOperationException("Course offering not found.");

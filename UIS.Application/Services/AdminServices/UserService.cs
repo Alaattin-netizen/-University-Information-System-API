@@ -1,6 +1,5 @@
 ﻿using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
-using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin.User;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
@@ -303,5 +302,65 @@ public class UserService : IUserService
 
         _unitOfWork.Repository<User>().Delete(user);
         await _unitOfWork.SaveChangesAsync();
+    }
+
+    public async Task<UserResponse> UpdateUserAsync(UpdateUserRequest request)
+    {
+        // 1. Fetch the user with roles and navigation properties
+        var user = await _unitOfWork.Repository<User>()
+            .GetQueryable()
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .Include(u => u.Department)
+            .Include(u => u.Advisor)
+            .FirstOrDefaultAsync(u => u.Id == request.Id);
+
+        if (user == null)
+            throw new InvalidOperationException("User not found.");
+
+        // 2. Check if the new email is already taken by another user
+        if (!string.Equals(user.Email, request.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            var existing = await _unitOfWork.Repository<User>()
+                .GetFirstAsync(u => u.Email == request.Email && u.Id != request.Id);
+            if (existing != null)
+                throw new InvalidOperationException("Email already registered by another user.");
+        }
+
+        // 3. Update properties
+        user.FirstName = request.FirstName;
+        user.LastName = request.LastName;
+        user.Email = request.Email;
+        user.DepartmentId = request.DepartmentId;
+
+        // 4. Update AdvisorId only if the user has the Student role
+        var isStudent = user.UserRoles.Any(ur => ur.Role.Name == "Student");
+        if (isStudent)
+        {
+            // Validate that the AdvisorId (if provided) is a valid Instructor
+            if (request.AdvisorId.HasValue)
+            {
+                var advisor = await _unitOfWork.Repository<User>()
+                    .GetQueryable()
+                    .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                    .FirstOrDefaultAsync(u => u.Id == request.AdvisorId.Value);
+
+                if (advisor == null || !advisor.UserRoles.Any(ur => ur.Role.Name == "Instructor"))
+                    throw new InvalidOperationException("Advisor must be a valid instructor.");
+            }
+            user.AdvisorId = request.AdvisorId;
+        }
+        else
+        {
+            // If the user is not a student, AdvisorId should be null
+            user.AdvisorId = null;
+        }
+
+        _unitOfWork.Repository<User>().Update(user);
+        await _unitOfWork.SaveChangesAsync();
+
+        // 5. Return updated user
+        return await GetUserByIdAsync(user.Id);
     }
 }

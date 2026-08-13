@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UIS.Application.Abstractions.AdminAbstractions;
+using UIS.Application.DTOs.Admin;
 using UIS.Application.DTOs.Admin.AuditLog;
 using UIS.Application.DTOs.Admin.Course;
 using UIS.Application.DTOs.Admin.Department;
@@ -24,6 +25,11 @@ public class AdminController : BaseApiController
     private readonly ILogService _logService;
     private readonly IAuditLogService _auditLogService;
     private readonly IUserRoleService _userRoleService;
+    private readonly IAnnouncementService _announcementService;
+    private readonly IAttendanceService _attendanceService;
+    private readonly ICourseOfferingService _courseOfferingService;
+    private readonly IAdminEnrollmentService _enrollmentService;
+    private readonly IRoleService _roleService;
     private readonly LoggingHelper _loggingHelper;
 
     public AdminController(
@@ -33,6 +39,11 @@ public class AdminController : BaseApiController
         IAuditLogService auditLogService,
         IUserRoleService userRoleService,
         ILogService logService,
+        ICourseOfferingService courseOfferingService,
+        IAdminEnrollmentService enrollmentService,
+        IRoleService roleService,
+        IAttendanceService attendanceService,
+        IAnnouncementService announcementService,
         LoggingHelper loggingHelper)
     {
         _facultyService = facultyService;
@@ -42,6 +53,11 @@ public class AdminController : BaseApiController
         _userRoleService = userRoleService;
         _logService = logService;
         _loggingHelper = loggingHelper;
+        _roleService = roleService;
+        _attendanceService = attendanceService;
+        _announcementService = announcementService;
+        _enrollmentService = enrollmentService;
+        _courseOfferingService = courseOfferingService;
     }
 
     // ======================================================
@@ -508,4 +524,220 @@ public class AdminController : BaseApiController
         await _loggingHelper.LogOperationAsync("Removed", "UserRole", null, $"User: {request.UserId}, Role: {request.RoleId}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
         return NoContent();
     }
+
+    [HttpPut("users")]
+    public async Task<IActionResult> UpdateUser([FromBody] UpdateUserRequest request)
+    {
+        var result = await _userService.UpdateUserAsync(request);
+        await _loggingHelper.LogOperationAsync(
+            "Updated",
+            "User",
+            result.Id,
+            $"Email: {result.Email}",
+            GetCurrentUserId(),
+            GetCurrentUserEmail(),
+            GetCurrentUserRoles()
+        );
+        return Ok(result);
+    }
+
+    // ============================================================
+    // 6. ANNOUNCEMENT CRUD
+    // ============================================================
+
+    [HttpGet("announcements")]
+    public async Task<IActionResult> GetAllAnnouncements()
+        => Ok(await _announcementService.GetAllAsync());
+
+    [HttpGet("announcements/{id}")]
+    public async Task<IActionResult> GetAnnouncementById(int id)
+        => Ok(await _announcementService.GetByIdAsync(id));
+
+    [HttpPost("announcements")]
+    public async Task<IActionResult> CreateAnnouncement([FromBody] AdminCreateAnnouncementRequest request)
+    {
+        var result = await _announcementService.CreateAsync(request);
+        await _loggingHelper.LogOperationAsync("Created", "Announcement", result.Id, $"Title: {request.Title}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return CreatedAtAction(nameof(GetAnnouncementById), new { id = result.Id }, result);
+    }
+
+    [HttpPut("announcements")]
+    public async Task<IActionResult> UpdateAnnouncement([FromBody] UpdateAnnouncementRequest request)
+    {
+        var result = await _announcementService.UpdateAsync(request);
+        await _loggingHelper.LogOperationAsync("Updated", "Announcement", result.Id, $"Title: {request.Title}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return Ok(result);
+    }
+
+    [HttpDelete("announcements/{id}")]
+    public async Task<IActionResult> DeleteAnnouncement(int id)
+    {
+        await _announcementService.DeleteAsync(id);
+        await _loggingHelper.LogOperationAsync("Deleted", "Announcement", id, $"ID: {id}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return NoContent();
+    }
+
+    // ============================================================
+    // 7. ATTENDANCE CRUD
+    // ============================================================
+
+    [HttpGet("attendances")]
+    public async Task<IActionResult> GetAllAttendances()
+        => Ok(await _attendanceService.GetAllAsync());
+
+    [HttpGet("attendances/{id}")]
+    public async Task<IActionResult> GetAttendanceById(int id)
+        => Ok(await _attendanceService.GetByIdAsync(id));
+
+    [HttpGet("attendances/student/{studentId}")]
+    public async Task<IActionResult> GetAttendancesByStudent(int studentId)
+        => Ok(await _attendanceService.GetByStudentAsync(studentId));
+
+    [HttpGet("attendances/course-offering/{courseOfferingId}")]
+    public async Task<IActionResult> GetAttendancesByCourseOffering(int courseOfferingId)
+        => Ok(await _attendanceService.GetByCourseOfferingAsync(courseOfferingId));
+
+    [HttpPost("attendances")]
+    public async Task<IActionResult> CreateAttendance([FromBody] CreateAttendanceRequest request)
+    {
+        var result = await _attendanceService.CreateAsync(request);
+        await _loggingHelper.LogOperationAsync("Created", "Attendance", result.Id, $"Student: {result.StudentId}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return CreatedAtAction(nameof(GetAttendanceById), new { id = result.Id }, result);
+    }
+
+    [HttpPut("attendances")]
+    public async Task<IActionResult> UpdateAttendance([FromBody] UpdateAttendanceRequest request)
+    {
+        var result = await _attendanceService.UpdateAsync(request);
+        await _loggingHelper.LogOperationAsync("Updated", "Attendance", result.Id, $"ID: {result.Id}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return Ok(result);
+    }
+
+    [HttpDelete("attendances/{id}")]
+    public async Task<IActionResult> DeleteAttendance(int id)
+    {
+        await _attendanceService.DeleteAsync(id);
+        await _loggingHelper.LogOperationAsync("Deleted", "Attendance", id, $"ID: {id}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return NoContent();
+    }
+
+    // ============================================================
+    // 8. COURSE OFFERING CRUD
+    // ============================================================
+
+    [HttpGet("course-offerings")]
+    public async Task<IActionResult> GetAllCourseOfferings()
+        => Ok(await _courseOfferingService.GetAllAsync());
+
+    [HttpGet("course-offerings/{id}")]
+    public async Task<IActionResult> GetCourseOfferingById(int id)
+        => Ok(await _courseOfferingService.GetByIdAsync(id));
+
+    [HttpPost("course-offerings")]
+    public async Task<IActionResult> CreateCourseOffering([FromBody] CreateCourseOfferingRequest request)
+    {
+        var result = await _courseOfferingService.CreateAsync(request);
+        await _loggingHelper.LogOperationAsync("Created", "CourseOffering", result.Id, $"Course: {result.CourseCode}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return CreatedAtAction(nameof(GetCourseOfferingById), new { id = result.Id }, result);
+    }
+
+    [HttpPut("course-offerings")]
+    public async Task<IActionResult> UpdateCourseOffering([FromBody] UpdateCourseOfferingRequest request)
+    {
+        var result = await _courseOfferingService.UpdateAsync(request);
+        await _loggingHelper.LogOperationAsync("Updated", "CourseOffering", result.Id, $"ID: {result.Id}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return Ok(result);
+    }
+
+    [HttpDelete("course-offerings/{id}")]
+    public async Task<IActionResult> DeleteCourseOffering(int id)
+    {
+        await _courseOfferingService.DeleteAsync(id);
+        await _loggingHelper.LogOperationAsync("Deleted", "CourseOffering", id, $"ID: {id}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return NoContent();
+    }
+
+    // ============================================================
+    // 9. ENROLLMENT CRUD (Admin)
+    // ============================================================
+
+    [HttpGet("enrollments")]
+    public async Task<IActionResult> GetAllEnrollments()
+        => Ok(await _enrollmentService.GetAllAsync());
+
+    [HttpGet("enrollments/{id}")]
+    public async Task<IActionResult> GetEnrollmentById(int id)
+        => Ok(await _enrollmentService.GetByIdAsync(id));
+
+    [HttpGet("enrollments/student/{studentId}")]
+    public async Task<IActionResult> GetEnrollmentsByStudent(int studentId)
+        => Ok(await _enrollmentService.GetByStudentAsync(studentId));
+
+    [HttpPost("enrollments")]
+    public async Task<IActionResult> CreateEnrollment([FromBody] CreateEnrollmentRequest request)
+    {
+        var result = await _enrollmentService.CreateAsync(request);
+        await _loggingHelper.LogOperationAsync("Created", "Enrollment", result.Id, $"Student: {result.StudentId}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return CreatedAtAction(nameof(GetEnrollmentById), new { id = result.Id }, result);
+    }
+
+    [HttpPut("enrollments")]
+    public async Task<IActionResult> UpdateEnrollment([FromBody] UpdateEnrollmentRequest request)
+    {
+        var result = await _enrollmentService.UpdateAsync(request);
+        await _loggingHelper.LogOperationAsync("Updated", "Enrollment", result.Id, $"ID: {result.Id}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return Ok(result);
+    }
+
+    [HttpDelete("enrollments/{id}")]
+    public async Task<IActionResult> DeleteEnrollment(int id)
+    {
+        await _enrollmentService.DeleteAsync(id);
+        await _loggingHelper.LogOperationAsync("Deleted", "Enrollment", id, $"ID: {id}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return NoContent();
+    }
+
+    // ============================================================
+    // 10. ROLE CRUD
+    // ============================================================
+
+    [HttpGet("roles")]
+    public async Task<IActionResult> GetAllRoles()
+        => Ok(await _roleService.GetAllAsync());
+
+    [HttpGet("roles/{id}")]
+    public async Task<IActionResult> GetRoleById(int id)
+        => Ok(await _roleService.GetByIdAsync(id));
+
+    [HttpPost("roles")]
+    public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
+    {
+        var result = await _roleService.CreateAsync(request);
+        await _loggingHelper.LogOperationAsync("Created", "Role", result.Id, $"Name: {request.Name}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return CreatedAtAction(nameof(GetRoleById), new { id = result.Id }, result);
+    }
+
+    [HttpPut("roles")]
+    public async Task<IActionResult> UpdateRole([FromBody] UpdateRoleRequest request)
+    {
+        var result = await _roleService.UpdateAsync(request);
+        await _loggingHelper.LogOperationAsync("Updated", "Role", result.Id, $"Name: {request.Name}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return Ok(result);
+    }
+
+    [HttpDelete("roles/{id}")]
+    public async Task<IActionResult> DeleteRole(int id)
+    {
+        await _roleService.DeleteAsync(id);
+        await _loggingHelper.LogOperationAsync("Deleted", "Role", id, $"ID: {id}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
+        return NoContent();
+    }
+
+    // ============================================================
+    // 11. USERROLE CRUD (Assignment/Removal)
+    // ============================================================
+
+
+    
+
 }

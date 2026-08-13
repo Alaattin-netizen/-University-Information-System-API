@@ -10,4 +10,6 @@ public interface IUserService
     Task<UserResponse> GetUserByIdAsync(int id);
     Task DeleteUserAsync(int id);
 
+    Task<UserResponse> UpdateUserAsync(UpdateUserRequest request);
+
 }

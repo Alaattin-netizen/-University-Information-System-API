@@ -1,4 +1,5 @@
-﻿using UIS.Application.Abstractions.StudentAbstractions;
+﻿using Microsoft.EntityFrameworkCore;
+using UIS.Application.Abstractions.StudentAbstractions;
 using UIS.Application.DTOs.Student.Grades;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
@@ -16,11 +17,12 @@ public class GradeService : IGradeService
 
     public async Task<IEnumerable<GradeResponse>> GetGradesAsync(int studentId)
     {
-        var repo = _unitOfWork.Repository<Enrollment>();
-        var enrollments = await repo.FindAsync(e =>
-            e.StudentId == studentId &&
-            e.IsActive &&
-            e.LetterGrade != null);
+        var enrollments = await _unitOfWork.Repository<Enrollment>()
+            .GetQueryable()
+            .Include(e => e.CourseOffering)
+                .ThenInclude(o => o.Course)   
+            .Where(e => e.StudentId == studentId && e.IsActive && e.LetterGrade != null)
+            .ToListAsync();
 
         return enrollments.Select(e => new GradeResponse
         {
@@ -38,17 +40,21 @@ public class GradeService : IGradeService
     public async Task<GPAResponse> GetGPAAsync(int studentId)
     {
         var repo = _unitOfWork.Repository<Enrollment>();
-        var enrollments = await repo.FindAsync(e =>
-            e.StudentId == studentId &&
-            e.IsActive &&
-            e.LetterGrade != null);
 
-        // Get current semester (active semester)
+        // ✅ Include CourseOffering and Course for both semester and cumulative calculations
+        var enrollments = await repo
+            .GetQueryable()
+            .Include(e => e.CourseOffering)
+                .ThenInclude(o => o.Course)
+            .Where(e => e.StudentId == studentId && e.IsActive && e.LetterGrade != null)
+            .ToListAsync();
+
         var semesterRepo = _unitOfWork.Repository<Semester>();
         var currentSemester = await semesterRepo.GetFirstAsync(s => s.IsActive);
 
-        var currentEnrollments = enrollments.Where(e =>
-            e.CourseOffering.SemesterId == currentSemester?.Id).ToList();
+        var currentEnrollments = enrollments
+            .Where(e => e.CourseOffering.SemesterId == currentSemester?.Id)
+            .ToList();
 
         double semesterTotalPoints = 0;
         int semesterTotalCredits = 0;

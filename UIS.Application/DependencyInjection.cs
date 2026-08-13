@@ -65,6 +65,10 @@ public static class DependencyInjection
         services.AddScoped<IAdminEnrollmentService, AdminEnrollmentService>();
         services.AddScoped<IAdminMessageService, AdminMessageService>();
         services.AddScoped<IAnnouncementService, AnnouncementService>();
+        services.AddScoped<IAttendanceService, AttendanceService>();
+        services.AddScoped<IRoleService, RoleService>();
+        services.AddScoped<IUserRoleService, UserRoleService>();
+
         return services;
     }
 }

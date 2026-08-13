@@ -4,7 +4,7 @@ namespace UIS.Application.Abstractions.AdminAbstractions;
 
 public interface IAnnouncementService
 {
-    Task<AnnouncementResponse> CreateAsync(CreateAnnouncementRequest request);
+    Task<AnnouncementResponse> CreateAsync(AdminCreateAnnouncementRequest request);
     Task<AnnouncementResponse> UpdateAsync(UpdateAnnouncementRequest request);
     Task DeleteAsync(int id);
     Task<AnnouncementResponse> GetByIdAsync(int id);
