@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin;
+using UIS.Application.DTOs.Filters;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 
@@ -69,7 +70,7 @@ public class AnnouncementService : IAnnouncementService
         return MapToResponse(a);
     }
 
-    public async Task<IEnumerable<AnnouncementResponse>> GetAllAsync()
+    public async Task<IEnumerable<AnnouncementResponse>> GetAllAsync(AnnouncementFilterRequest filter)
     {
         var list = await _unitOfWork.Repository<Announcement>()
             .GetQueryable()
@@ -78,6 +79,16 @@ public class AnnouncementService : IAnnouncementService
             .OrderByDescending(a => a.CreatedDate)
             .ToListAsync();
 
+        if (filter != null)
+        {
+
+            if (filter.CourseOfferingId.HasValue)
+                list = list.Where(a => a.CourseOfferingId == filter.CourseOfferingId.Value).ToList();
+            if (filter.FromDate.HasValue)
+                list = list.Where(a => a.CreatedDate >= filter.FromDate.Value).ToList();
+            if (filter.ToDate.HasValue)
+                list = list.Where(a => a.CreatedDate <= filter.ToDate.Value).ToList();
+        }
         return list.Select(MapToResponse);
     }
 

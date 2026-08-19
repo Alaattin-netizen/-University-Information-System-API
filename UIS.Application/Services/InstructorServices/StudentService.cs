@@ -19,6 +19,7 @@ public class StudentService : IStudentService
     // 3. Enter/Update grades for a student
     public async Task EnterGradesAsync(int instructorId, GradeEntryRequest request)
     {
+        Console.WriteLine($"Received: Midterm={request.MidtermScore}, Final={request.FinalScore}, Assignment={request.AssignmentScore}, Makeup={request.MakeupScore}");
         var enrollment = await _unitOfWork.Repository<Enrollment>()
             .GetQueryable()
             .Include(e => e.CourseOffering)
@@ -44,9 +45,17 @@ public class StudentService : IStudentService
             totalScore += (enrollment.MidtermScore.Value * 0.4);
 
         if (enrollment.FinalScore.HasValue)
+        {
+            if (enrollment.FinalScore.Value == 0)
+            {
+                if(enrollment.MakeupScore.HasValue)
+                    totalScore += (enrollment.MakeupScore.Value * 0.5);
+            }
+            else
             totalScore += (enrollment.FinalScore.Value * 0.5);
+        }
         else if (enrollment.MakeupScore.HasValue)
-            totalScore += enrollment.MakeupScore.Value *0.5;
+            totalScore += enrollment.MakeupScore.Value * 0.5;
         if (enrollment.AssignmentScore.HasValue)
             totalScore += (enrollment.AssignmentScore.Value * 0.1); 
       

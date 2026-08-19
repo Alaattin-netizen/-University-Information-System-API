@@ -3,6 +3,7 @@ using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin.Course;
 using UIS.Application.DTOs.Admin.Department;
 using UIS.Application.DTOs.Admin.Faculty;
+using UIS.Application.DTOs.Filters;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 
@@ -69,13 +70,25 @@ public class FacultyService : IFacultyService
 
     }
 
-    public async Task<IEnumerable<FacultyResponse>> GetAllFacultiesAsync()
+    public async Task<IEnumerable<FacultyResponse>> GetAllFacultiesAsync(FacultyFilterRequest filter)
     {
         var faculties = await _unitOfWork.Repository<Faculty>()
             .GetQueryable()
             .Include(f => f.Departments)
             .ToListAsync();
 
+        if (filter != null)
+        {
+            if (!string.IsNullOrEmpty(filter.Name))
+            {
+                faculties = faculties.Where(f => f.Name.Contains(filter.Name, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+            if (!string.IsNullOrEmpty(filter.DeanName))
+            {
+                faculties = faculties.Where(f => f.DeanName != null && f.DeanName.Contains(filter.DeanName, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+        }
+      
         return faculties.Select(f => new FacultyResponse
         {
             Id = f.Id,
@@ -148,7 +161,7 @@ public class FacultyService : IFacultyService
 
     }
 
-    public async Task<IEnumerable<DepartmentResponse>> GetAllDepartmentsAsync()
+    public async Task<IEnumerable<DepartmentResponse>> GetAllDepartmentsAsync(DepartmentFilterRequest filter)
     {
         var departments = await _unitOfWork.Repository<Department>()
             .GetQueryable()
@@ -157,6 +170,21 @@ public class FacultyService : IFacultyService
             .Include(d => d.Courses)
             .ToListAsync();
 
+        if (filter != null)
+        {
+            if (!string.IsNullOrEmpty(filter.Name))
+            {
+                departments = departments.Where(d => d.Name.Equals(filter.Name)).ToList();
+            }
+            if (filter.FacultyId.HasValue)
+            {
+                departments = departments.Where(d => d.FacultyId == filter.FacultyId.Value).ToList();
+            }
+            if (!string.IsNullOrEmpty(filter.FacultyName))
+            {
+                departments = departments.Where(d => d.Faculty != null && d.Faculty.Name.Equals(filter.FacultyName)).ToList();
+            }
+        }
         return departments.Select(d => new DepartmentResponse
         {
             Id = d.Id,
@@ -247,7 +275,7 @@ public class FacultyService : IFacultyService
 
     }
 
-    public async Task<IEnumerable<CourseResponse>> GetAllCoursesAsync()
+    public async Task<IEnumerable<CourseResponse>> GetAllCoursesAsync(CourseFilterRequest filter)
     {
         var courses = await _unitOfWork.Repository<Course>()
             .GetQueryable()
@@ -256,7 +284,41 @@ public class FacultyService : IFacultyService
             .Include(c => c.Offerings)
             .ToListAsync();
 
-        return courses.Select(c => new CourseResponse
+        if (filter != null)
+        {
+            if (filter.MaxCredits.HasValue)
+            {
+                courses = courses.Where(c => c.Credits <= filter.MaxCredits.Value).ToList();
+            }
+            if (filter.MinCredits.HasValue)
+            {
+                courses = courses.Where(c => c.Credits >= filter.MinCredits.Value).ToList();
+            }
+            if (filter.MaxECTS.HasValue)
+            {
+                courses = courses.Where(c => c.ECTS <= filter.MaxECTS.Value).ToList();
+            }
+            if (filter.MinECTS.HasValue)
+            {
+                courses = courses.Where(c => c.ECTS >= filter.MinECTS.Value).ToList();
+            }
+            if (filter.IsMandatory.HasValue)
+                courses = courses.Where(c => c.IsMandatory == filter.IsMandatory.Value).ToList();
+            if (!string.IsNullOrEmpty(filter.Code) && filter.Code.Length > 0)
+            {
+                courses = courses.Where(c => c.Code.Equals(filter.Code, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+            if (!string.IsNullOrEmpty(filter.Name) && filter.Name.Length > 0)
+            {
+                courses = courses.Where(c => c.Name.Equals(filter.Name, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+            if (filter.DepartmentId.HasValue)
+            {
+                courses = courses.Where(c => c.DepartmentId == filter.DepartmentId.Value).ToList();
+            }
+            
+        }
+            return courses.Select(c => new CourseResponse
         {
             Id = c.Id,
             Code = c.Code,

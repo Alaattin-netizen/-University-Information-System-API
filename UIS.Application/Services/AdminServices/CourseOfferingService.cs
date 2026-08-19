@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin;
+using UIS.Application.DTOs.Filters;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 
@@ -98,7 +99,7 @@ public class CourseOfferingService : ICourseOfferingService
         return MapToResponse(o);
     }
 
-    public async Task<IEnumerable<CourseOfferingResponse>> GetAllAsync()
+    public async Task<IEnumerable<CourseOfferingResponse>> GetAllAsync(CourseOfferingFilterRequest filter)
     {
         var list = await _unitOfWork.Repository<CourseOffering>()
             .GetQueryable()
@@ -109,7 +110,29 @@ public class CourseOfferingService : ICourseOfferingService
             .OrderBy(o => o.SemesterId)
             .ThenBy(o => o.Day)
             .ToListAsync();
-
+        if (filter != null)
+        {
+            if (filter.InstructorId.HasValue)
+                list = list.Where(o => o.InstructorId == filter.InstructorId.Value).ToList();
+            if (filter.SemesterId.HasValue)
+                list = list.Where(o => o.SemesterId == filter.SemesterId.Value).ToList();
+            if (filter.CourseId.HasValue)
+                list = list.Where(o => o.CourseId == filter.CourseId.Value).ToList();
+            if (filter.EnrolledCount != null)
+            {
+                list = list.Where(o => o.Enrollments.Count == filter.EnrolledCount).ToList();
+            }
+            if (filter.Day != null)
+                list = list.Where(o => o.Day.ToString().Equals(filter.Day, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (filter.FromDate.HasValue)
+            {
+                list = list.Where(o => o.StartTime >= filter.FromDate.Value.TimeOfDay).ToList();
+            }
+            if (filter.ToDate.HasValue)
+            {
+                list = list.Where(o => o.EndTime <= filter.ToDate.Value.TimeOfDay).ToList();
+            }
+        }
         return list.Select(MapToResponse);
     }
 

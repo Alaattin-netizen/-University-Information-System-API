@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin;
+using UIS.Application.DTOs.Filters;
 using UIS.Application.Services;
 
 namespace UIS.API.Controllers;
@@ -21,8 +22,8 @@ public class CourseOfferingsController : BaseApiController
 
     [HttpGet]
     [Authorize]
-    public async Task<IActionResult> GetAll()
-        => Ok(await _courseOfferingService.GetAllAsync());
+    public async Task<IActionResult> GetAll([FromQuery] CourseOfferingFilterRequest filter)
+        => Ok(await _courseOfferingService.GetAllAsync(filter));
 
     [HttpGet("{id}")]
     [Authorize]
@@ -54,5 +55,5 @@ public class CourseOfferingsController : BaseApiController
         await _courseOfferingService.DeleteAsync(id);
         await _loggingHelper.LogOperationAsync("Deleted", "CourseOffering", id, $"ID: {id}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
         return NoContent();
-    }
+    }   
 }

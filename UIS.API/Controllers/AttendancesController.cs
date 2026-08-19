@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin;
+using UIS.Application.DTOs.Filters;
 using UIS.Application.Services;
 
 namespace UIS.API.Controllers;
@@ -21,8 +22,8 @@ public class AttendancesController : BaseApiController
 
     [HttpGet]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetAll()
-        => Ok(await _attendanceService.GetAllAsync());
+    public async Task<IActionResult> GetAll([FromQuery] AttendanceFilterRequest request)
+        => Ok(await _attendanceService.GetAllAsync(request));
 
     [HttpGet("{id}")]
     [Authorize]

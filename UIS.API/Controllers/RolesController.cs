@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin;
+using UIS.Application.DTOs.Filters;
 using UIS.Application.Services;
 
 namespace UIS.API.Controllers;
@@ -21,8 +22,8 @@ public class RolesController : BaseApiController
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
-        => Ok(await _roleService.GetAllAsync());
+    public async Task<IActionResult> GetAll([FromQuery] RoleFilterRequest filter)
+        => Ok(await _roleService.GetAllAsync(filter));
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)

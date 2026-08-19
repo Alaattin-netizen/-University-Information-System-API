@@ -1,6 +1,6 @@
-﻿using UIS.Application.DTOs.Student.Profile;
+﻿using UIS.Application.DTOs.Profile;
 
-namespace UIS.Application.Abstractions.StudentAbstractions;
+namespace UIS.Application.Abstractions;
 
 public interface IProfileService
 {

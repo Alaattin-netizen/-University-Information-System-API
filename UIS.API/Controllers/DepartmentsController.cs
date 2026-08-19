@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UIS.Application.DTOs.Admin.Department;
+using UIS.Application.DTOs.Filters;
 using UIS.Application.Services;
 
 namespace UIS.API.Controllers;
@@ -20,8 +21,8 @@ public class DepartmentsController : BaseApiController
 
     [HttpGet]
     [Authorize]
-    public async Task<IActionResult> GetAll()
-        => Ok(await _facultyService.GetAllDepartmentsAsync());
+    public async Task<IActionResult> GetAll([FromQuery] DepartmentFilterRequest filter)
+        => Ok(await _facultyService.GetAllDepartmentsAsync(filter));
 
     [HttpGet("{id}")]
     [Authorize]

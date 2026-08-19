@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin.UserRole;
+using UIS.Application.DTOs.Filters;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 
@@ -61,14 +62,20 @@ public class UserRoleService : IUserRoleService
     }
 
     // GET ALL
-    public async Task<IEnumerable<UserRoleResponse>> GetAllAsync()
+    public async Task<IEnumerable<UserRoleResponse>> GetAllAsync(UserRoleFilterRequest filter)
     {
         var userRoles = await _unitOfWork.Repository<UserRole>()
             .GetQueryable()
             .Include(ur => ur.User)
             .Include(ur => ur.Role)
             .ToListAsync();
-
+        if (filter != null)
+        {
+            if (filter.UserId.HasValue)
+                userRoles = userRoles.Where(ur => ur.UserId == filter.UserId.Value).ToList();
+            if (filter.RoleId.HasValue)
+                userRoles = userRoles.Where(ur => ur.RoleId == filter.RoleId.Value).ToList();
+        }
         return userRoles.Select(MapToResponse);
     }
 

@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin.Semester;
+using UIS.Application.DTOs.Filters;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 
@@ -256,13 +257,31 @@ public class SemesterService : ISemesterService
     // GET ALL SEMESTERS
     // ======================================================
 
-    public async Task<IEnumerable<SemesterResponse>> GetAllSemestersAsync()
+    public async Task<IEnumerable<SemesterResponse>> GetAllSemestersAsync(SemesterFilterRequest  filter)
     {
         var semesters = await _unitOfWork.Repository<Semester>()
             .GetQueryable()
             .Include(s => s.CourseOfferings)
                 .ThenInclude(o => o.Enrollments)
             .ToListAsync();
+
+        if (filter != null)
+        {
+            if (filter.IsActive.HasValue)
+            {
+                semesters = semesters.Where(s => s.IsActive == filter.IsActive.Value).ToList();
+            }
+            if (!string.IsNullOrEmpty(filter.Name))
+            {
+                semesters = semesters.Where(s => s.Name.Equals(filter.Name, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+            if (filter.FromDate.HasValue)
+            {
+                semesters = semesters.Where(s => s.StartDate >= filter.FromDate.Value).ToList();
+            }
+            if (filter.ToDate.HasValue)
+                semesters = semesters.Where(s => s.EndDate <= filter.ToDate.Value).ToList();
+        }
 
         return semesters.Select(s => new SemesterResponse
         {

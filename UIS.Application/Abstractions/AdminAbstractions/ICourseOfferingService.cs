@@ -1,4 +1,5 @@
 using UIS.Application.DTOs.Admin;
+using UIS.Application.DTOs.Filters;
 
 namespace UIS.Application.Abstractions.AdminAbstractions;
 
@@ -8,5 +9,5 @@ public interface ICourseOfferingService
     Task<CourseOfferingResponse> UpdateAsync(UpdateCourseOfferingRequest request);
     Task DeleteAsync(int id);
     Task<CourseOfferingResponse> GetByIdAsync(int id);
-    Task<IEnumerable<CourseOfferingResponse>> GetAllAsync();
+    Task<IEnumerable<CourseOfferingResponse>> GetAllAsync(CourseOfferingFilterRequest? filter=null);
 }

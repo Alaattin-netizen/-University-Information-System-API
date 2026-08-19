@@ -1,6 +1,8 @@
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin;
+using UIS.Application.DTOs.Admin.Enrollment;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 
@@ -84,16 +86,30 @@ public class AdminEnrollmentService : IAdminEnrollmentService
         return MapToResponse(e);
     }
 
-    public async Task<IEnumerable<EnrollmentResponse>> GetAllAsync()
+    public async Task<IEnumerable<EnrollmentResponse>> GetAllAsync(EnrollmentFilterRequest filter)
     {
-        var list = await _unitOfWork.Repository<Enrollment>()
+        IQueryable<Enrollment> query = _unitOfWork.Repository<Enrollment>()
             .GetQueryable()
             .Include(e => e.Student)
-            .Include(e => e.CourseOffering).ThenInclude(o => o.Course)
-            .OrderByDescending(e => e.EnrollmentDate)
-            .ToListAsync();
+            .Include(e => e.CourseOffering)
+                .ThenInclude(o => o.Course);
 
-        return list.Select(MapToResponse);
+        if (filter != null)
+        {
+            if (filter.StudentId.HasValue)
+                query = query.Where(e => e.StudentId == filter.StudentId.Value);
+
+            if (filter.CourseOfferingId.HasValue)
+                query = query.Where(e => e.CourseOfferingId == filter.CourseOfferingId.Value);
+
+            if (filter.IsActive.HasValue)
+                query = query.Where(e => e.IsActive == filter.IsActive.Value);
+        }
+
+            var list = await query.OrderByDescending(e => e.EnrollmentDate).ToListAsync();
+
+            return list.Select(MapToResponse);
+        
     }
 
     public async Task<IEnumerable<EnrollmentResponse>> GetByStudentAsync(int studentId)

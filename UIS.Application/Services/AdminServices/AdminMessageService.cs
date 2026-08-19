@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin.Message;
+using UIS.Application.DTOs.Filters;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 
@@ -77,7 +78,7 @@ public class AdminMessageService : IAdminMessageService
         return MapToResponse(m);
     }
 
-    public async Task<IEnumerable<MessageResponse>> GetAllAsync()
+    public async Task<IEnumerable<MessageResponse>> GetAllAsync(MessageFilterRequest filter)
     {
         var list = await _unitOfWork.Repository<Message>()
             .GetQueryable()
@@ -85,6 +86,31 @@ public class AdminMessageService : IAdminMessageService
             .Include(m => m.Receiver)
             .OrderByDescending(m => m.SentDate)
             .ToListAsync();
+
+        if (filter != null)
+        {
+            if (filter.FromDate.HasValue)
+            {
+                list = list.Where(m => m.SentDate >= filter.FromDate.Value).ToList();
+            }
+            if (filter.ToDate.HasValue)
+            {
+                list = list.Where(m => m.SentDate <= filter.ToDate.Value).ToList();
+            }
+            if (filter.SenderStudentId.HasValue)
+            {
+                list = list.Where(m => m.SenderStudentId == filter.SenderStudentId.Value).ToList();
+            }
+            if (filter.ReceiverInstructorId.HasValue)
+            {
+                list = list.Where(m => m.ReceiverInstructorId == filter.ReceiverInstructorId.Value).ToList();
+            }
+            if (filter.IsRead.HasValue)
+            {
+                list = list.Where(m => m.IsRead == filter.IsRead.Value).ToList();
+            }
+        }
+        
 
         return list.Select(MapToResponse);
     }

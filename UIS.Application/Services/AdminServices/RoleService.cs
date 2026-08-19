@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin;
+using UIS.Application.DTOs.Filters;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 
@@ -65,12 +66,24 @@ public class RoleService : IRoleService
         return MapToResponse(r);
     }
 
-    public async Task<IEnumerable<RoleResponse>> GetAllAsync()
+    public async Task<IEnumerable<RoleResponse>> GetAllAsync(RoleFilterRequest filter)
     {
         var list = await _unitOfWork.Repository<Role>()
             .GetQueryable()
             .Include(r => r.UserRoles)
             .ToListAsync();
+
+        if (filter != null)
+        {
+            if (!string.IsNullOrEmpty(filter.Name))
+            {
+                list = list.Where(r => r.Name.Contains(filter.Name, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+            if (!string.IsNullOrEmpty(filter.Description))
+            {
+                list = list.Where(r => r.Description.Contains(filter.Description, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+        }
 
         return list.Select(MapToResponse);
     }

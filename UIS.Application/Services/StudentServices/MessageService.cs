@@ -1,4 +1,6 @@
-﻿using UIS.Application.Abstractions.StudentAbstractions;
+﻿using Microsoft.EntityFrameworkCore;
+using UIS.Application.Abstractions.StudentAbstractions;
+using UIS.Application.DTOs.Admin.Message;
 using UIS.Application.DTOs.Student.Messages;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
@@ -14,19 +16,50 @@ public class MessageService : IMessageService
     {
         _unitOfWork = unitOfWork;
     }
+    public async Task<IEnumerable<MessageResponse>> GetSentMessagesAsync(int studentId)
+    {
+        var messages = await _unitOfWork.Repository<Message>()
+            .GetQueryable()
+            .Include(m => m.Receiver)
+            .Where(m => m.SenderStudentId == studentId)
+            .OrderByDescending(m => m.SentDate)
+            .ToListAsync();
 
+        return messages.Select(m => new MessageResponse
+        {
+            Id = m.Id,
+            ReceiverName = $"{m.Receiver.FirstName} {m.Receiver.LastName}",
+            Subject = m.Subject,
+            Content = m.Content,
+            SentDate = m.SentDate,
+            IsRead = m.IsRead
+        });
+    }
     public async Task SendMessageAsync(int studentId, SendMessageRequest request)
     {
         var studentRepo = _unitOfWork.Repository<User>();
         var student = await studentRepo.GetByIdAsync(studentId);
 
         if (student == null) throw new Exception("Student not found.");
-        if (student.AdvisorId == null) throw new Exception("Student has no assigned advisor.");
+
+        var receiver = await _unitOfWork.Repository<User>()
+        .GetQueryable()
+        .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+        .FirstOrDefaultAsync(u => u.Id == request.ReceiverInstructorId);
+
+        if (receiver == null)
+            throw new Exception("Receiver not found.");
+
+        // ✅ 2. Verify the receiver has the "Instructor" role
+        var isInstructor = receiver.UserRoles.Any(ur => ur.Role.Name == "Instructor");
+        if (!isInstructor)
+            throw new Exception("You can only send messages to instructors.");
 
         var message = new Message
         {
             SenderStudentId = studentId,
-            ReceiverInstructorId = student.AdvisorId.Value,
+            ReceiverInstructorId = request.ReceiverInstructorId,
             Subject = request.Subject,
             Content = request.Content,
             SentDate = DateTime.UtcNow,

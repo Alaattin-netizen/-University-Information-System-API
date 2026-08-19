@@ -10,7 +10,14 @@ public abstract class BaseApiController : ControllerBase
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                           ?? User.FindFirst("nameid")?.Value;
-        return int.TryParse(userIdClaim, out var id) ? id : 0;
+
+        if (string.IsNullOrEmpty(userIdClaim))
+            throw new UnauthorizedAccessException("User is not authenticated or User ID claim is missing.");
+
+        if (!int.TryParse(userIdClaim, out var userId))
+            throw new InvalidOperationException($"Invalid User ID claim value: '{userIdClaim}'.");
+
+        return userId;
     }
 
     protected string GetCurrentUserEmail()

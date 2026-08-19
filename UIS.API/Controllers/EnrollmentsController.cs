@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin;
+using UIS.Application.DTOs.Admin.Enrollment;
 using UIS.Application.Services;
 
 namespace UIS.API.Controllers;
@@ -21,8 +22,8 @@ public class EnrollmentsController : BaseApiController
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
-        => Ok(await _enrollmentService.GetAllAsync());
+    public async Task<IActionResult> GetAll([FromQuery] EnrollmentFilterRequest request)
+        => Ok(await _enrollmentService.GetAllAsync(request));
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)

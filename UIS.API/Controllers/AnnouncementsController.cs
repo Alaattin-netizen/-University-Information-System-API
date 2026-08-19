@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin;
+using UIS.Application.DTOs.Filters;
 using UIS.Application.Services;
 
 namespace UIS.API.Controllers;
@@ -21,23 +22,13 @@ public class AnnouncementsController : BaseApiController
 
     [HttpGet]
     [Authorize]
-    public async Task<IActionResult> GetAll()
-        => Ok(await _announcementService.GetAllAsync());
+    public async Task<IActionResult> GetAll([FromQuery] AnnouncementFilterRequest request)
+        => Ok(await _announcementService.GetAllAsync(request));
 
     [HttpGet("{id}")]
     [Authorize]
     public async Task<IActionResult> GetById(int id)
         => Ok(await _announcementService.GetByIdAsync(id));
-
-    [HttpGet("course-offering/{courseOfferingId}")]
-    [Authorize]
-    public async Task<IActionResult> GetByCourseOffering(int courseOfferingId)
-    {
-        // This could be extended to check permissions (enrolled/teaching/admin)
-        var all = await _announcementService.GetAllAsync();
-        var filtered = all.Where(a => a.CourseOfferingId == courseOfferingId);
-        return Ok(filtered);
-    }
 
     [HttpPost]
     [Authorize(Roles = "Admin")]

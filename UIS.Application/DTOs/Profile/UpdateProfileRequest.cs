@@ -1,4 +1,4 @@
-﻿namespace UIS.Application.DTOs.Student.Profile;
+﻿namespace UIS.Application.DTOs.Profile;
 
 public class UpdateProfileRequest
 {

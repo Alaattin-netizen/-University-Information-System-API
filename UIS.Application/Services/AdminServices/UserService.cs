@@ -1,6 +1,7 @@
 ﻿using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using UIS.Application.DTOs.Admin.User;
+using UIS.Application.DTOs.Filters;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 
@@ -216,7 +217,7 @@ public class UserService : IUserService
     // GET ALL USERS
     // ======================================================
 
-    public async Task<IEnumerable<UserResponse>> GetAllUsersAsync()
+    public async Task<IEnumerable<UserResponse>> GetAllUsersAsync(UserFilterRequest filter)
     {
         var users = await _unitOfWork.Repository<User>()
             .GetQueryable()
@@ -226,7 +227,29 @@ public class UserService : IUserService
             .Include(u => u.Advisor)
             .ToListAsync();
 
-        return users.Select(u => new UserResponse
+        if (filter != null)
+        {
+            if (!string.IsNullOrEmpty(filter.FirstName))
+                users = users.Where(u => u.FirstName.Equals(filter.FirstName, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (!string.IsNullOrEmpty(filter.LastName))
+                users = users.Where(u => u.LastName.Equals(filter.LastName, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (!string.IsNullOrEmpty(filter.Email))
+                users = users.Where(u => u.Email.Equals(filter.Email, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (filter.Roles != null && filter.Roles.Any())
+            {
+                foreach (var role in filter.Roles)
+                {
+                    users = users.Where(u => u.UserRoles.Any(ur => ur.Role.Name.Equals(role, StringComparison.OrdinalIgnoreCase))).ToList();
+                }
+            }
+
+            if (filter.DepartmentId.HasValue)
+            {
+                users = users.Where(u => u.DepartmentId == filter.DepartmentId.Value).ToList();
+            }
+        }
+
+            return users.Select(u => new UserResponse
         {
             Id = u.Id,
             FirstName = u.FirstName,

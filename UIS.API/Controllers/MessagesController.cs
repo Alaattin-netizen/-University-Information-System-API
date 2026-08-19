@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin.Message;
+using UIS.Application.DTOs.Filters;
 using UIS.Application.Services;
 
 namespace UIS.API.Controllers;
@@ -21,8 +22,8 @@ public class MessagesController : BaseApiController
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
-        => Ok(await _messageService.GetAllAsync());
+    public async Task<IActionResult> GetAll([FromQuery] MessageFilterRequest request)
+        => Ok(await _messageService.GetAllAsync(request));
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)

@@ -5,6 +5,9 @@ public class EnrollmentResponse
     public int Id { get; set; }
     public int StudentId { get; set; }
     public string StudentName { get; set; }
+
+    public string CourseName { get; set; }
+    public int Credits { get; set; }
     public int CourseOfferingId { get; set; }
     public string CourseCode { get; set; }
     public DateTime EnrollmentDate { get; set; }

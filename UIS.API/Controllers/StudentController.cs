@@ -1,11 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using UIS.Infrastructure.Repositories;
 using System.Security.Claims;
 using UIS.Application.Abstractions.StudentAbstractions;
 using UIS.Application.DTOs.Student.Courses;
 using UIS.Application.DTOs.Student.Messages;
-using UIS.Application.DTOs.Student.Profile;
 using UIS.Application.Services;
+using UIS.Domain.Entities;
+using UIS.Application.DTOs.Profile;
 namespace UIS.API.Controllers;
 
 [ApiController]
@@ -17,23 +19,24 @@ public class StudentController : BaseApiController
     private readonly IGradeService _gradeService;
     private readonly IScheduleService _scheduleService;
     private readonly IMessageService _messageService;
-    private readonly IProfileService _profileService;
     private readonly LoggingHelper _loggingHelper;
 
+    private readonly IUnitOfWork _unitOfWork;
+
     public StudentController(
+        IUnitOfWork unitOfWork,
         IEnrollmentService enrollmentService,
         IGradeService gradeService,
         IScheduleService scheduleService,
         IMessageService messageService,
-        IProfileService profileService,
         LoggingHelper loggingHelper)
     {
         _enrollmentService = enrollmentService;
         _gradeService = gradeService;
         _scheduleService = scheduleService;
         _messageService = messageService;
-        _profileService = profileService;
         _loggingHelper = loggingHelper;
+        _unitOfWork = unitOfWork;
     }
 
     private int GetStudentId()
@@ -53,15 +56,23 @@ public class StudentController : BaseApiController
     [HttpPost("enroll")]
     public async Task<IActionResult> Enroll([FromBody] EnrollRequest request)
     {
+        // Call the service (it now saves the enrollment)
         await _enrollmentService.EnrollAsync(GetStudentId(), request.CourseOfferingId);
+
+        // Since we don't return the ID from the service, fetch it
+        var enrollment = await _unitOfWork.Repository<Enrollment>()
+            .GetFirstAsync(e => e.StudentId == GetStudentId() && e.CourseOfferingId == request.CourseOfferingId && e.IsActive);
+
         await _loggingHelper.LogOperationAsync(
-    "Created",
-    "Enrollment",
-    null, // ID not returned – modify service to return ID if needed
-    $"StudentId: {GetStudentId()}, CourseOfferingId: {request.CourseOfferingId}",
-    GetCurrentUserId(),
-    GetCurrentUserEmail(),
-    GetCurrentUserRoles());
+            "Created",
+            "Enrollment",
+            enrollment?.Id,
+            $"StudentId: {GetStudentId()}, CourseOfferingId: {request.CourseOfferingId}",
+            GetCurrentUserId(),
+            GetCurrentUserEmail(),
+            GetCurrentUserRoles()
+        );
+
         return Ok(new { message = "Successfully enrolled." });
     }
 
@@ -115,8 +126,8 @@ public class StudentController : BaseApiController
     }
 
     // 6. Send message to advisor
-    [HttpPost("messages")]
-    public async Task<IActionResult> SendMessage([FromBody] SendMessageRequest request)
+    [HttpPost("message")]
+    public async Task<IActionResult> SendMessage( [FromBody] SendMessageRequest request)
     {
         await _messageService.SendMessageAsync(GetStudentId(), request);
         await _loggingHelper.LogOperationAsync(
@@ -131,20 +142,20 @@ public class StudentController : BaseApiController
         return Ok(new { message = "Message sent to advisor." });
     }
 
-    // 7. Update profile
-    [HttpPut("profile")]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+
+    [HttpGet("enrollments")]
+    public async Task<IActionResult> GetMyEnrollments()
     {
-        await _profileService.UpdateProfileAsync(GetStudentId(), request);
-        await _loggingHelper.LogOperationAsync(
-        "Updated",
-        "Profile",
-        GetStudentId(),
-        $"New Name: {request.FirstName} {request.LastName}",
-        GetCurrentUserId(),
-        GetCurrentUserEmail(),
-        GetCurrentUserRoles()
-    );
-        return Ok(new { message = "Profile updated successfully." });
+        var studentId = GetStudentId();
+        var enrollments = await _enrollmentService.GetActiveEnrollmentsAsync(studentId);
+        return Ok(enrollments);
+    }
+
+    [HttpGet("messages")]
+    public async Task<IActionResult> GetMyMessages()
+    {
+        var studentId = GetStudentId();
+        var messages = await _messageService.GetSentMessagesAsync(studentId);
+        return Ok(messages);
     }
 }

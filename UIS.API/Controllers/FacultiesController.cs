@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UIS.Application.DTOs.Admin.Faculty;
+using UIS.Application.DTOs.Filters;
 using UIS.Application.Services;
 
 namespace UIS.API.Controllers;
@@ -20,8 +21,8 @@ public class FacultiesController : BaseApiController
 
     [HttpGet]
     [Authorize]
-    public async Task<IActionResult> GetAll()
-        => Ok(await _facultyService.GetAllFacultiesAsync());
+    public async Task<IActionResult> GetAll([FromQuery] FacultyFilterRequest filter)
+        => Ok(await _facultyService.GetAllFacultiesAsync(filter));
 
     [HttpGet("{id}")]
     [Authorize]

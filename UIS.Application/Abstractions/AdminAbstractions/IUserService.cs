@@ -1,4 +1,5 @@
 ﻿using UIS.Application.DTOs.Admin.User;
+using UIS.Application.DTOs.Filters;
 
 public interface IUserService
 {
@@ -6,7 +7,7 @@ public interface IUserService
     Task<UserResponse> CreateInstructorAsync(CreateInstructorRequest request);
     Task<UserResponse> CreateAdminAsync(CreateAdminRequest request); // ✅ Added
     Task<UserResponse> AssignAdminRoleAsync(AssignAdminRoleRequest request);
-    Task<IEnumerable<UserResponse>> GetAllUsersAsync();
+    Task<IEnumerable<UserResponse>> GetAllUsersAsync(UserFilterRequest? filter=null);
     Task<UserResponse> GetUserByIdAsync(int id);
     Task DeleteUserAsync(int id);
 

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UIS.Application.DTOs.Admin.Course;
+using UIS.Application.DTOs.Filters;
 using UIS.Application.Services;
 
 namespace UIS.API.Controllers;
@@ -20,8 +21,8 @@ public class CoursesController : BaseApiController
 
     [HttpGet]
     [Authorize]
-    public async Task<IActionResult> GetAll()
-        => Ok(await _facultyService.GetAllCoursesAsync());
+    public async Task<IActionResult> GetAll([FromQuery] CourseFilterRequest filter)
+        => Ok(await _facultyService.GetAllCoursesAsync(filter));
 
     [HttpGet("{id}")]
     [Authorize]

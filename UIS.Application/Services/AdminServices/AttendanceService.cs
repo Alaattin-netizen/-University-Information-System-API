@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin;
+using UIS.Application.DTOs.Filters;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 
@@ -68,7 +69,7 @@ public class AttendanceService : IAttendanceService
         return MapToResponse(a);
     }
 
-    public async Task<IEnumerable<AttendanceResponse>> GetAllAsync()
+    public async Task<IEnumerable<AttendanceResponse>> GetAllAsync(AttendanceFilterRequest filter)
     {
         var list = await _unitOfWork.Repository<Attendance>()
             .GetQueryable()
@@ -76,7 +77,30 @@ public class AttendanceService : IAttendanceService
             .Include(a => a.CourseOffering).ThenInclude(o => o.Course)
             .OrderByDescending(a => a.Date)
             .ToListAsync();
+        if (filter != null)
+        {
 
+            if (filter.IsPresent.HasValue)
+            {
+                list = list.Where(a => a.IsPresent == filter.IsPresent.Value).ToList();
+            }
+            if (filter.CourseOfferingId.HasValue)
+            {
+                list = list.Where(a => a.CourseOfferingId == filter.CourseOfferingId.Value).ToList();
+            }
+            if (filter.StudentId.HasValue)
+            {
+                list = list.Where(a => a.StudentId == filter.StudentId.Value).ToList();
+            }
+            if (filter.FromDate.HasValue)
+            {
+                list = list.Where(a => a.Date >= filter.FromDate.Value).ToList();
+            }
+            if (filter.ToDate.HasValue)
+            {
+                list = list.Where(a => a.Date <= filter.ToDate.Value).ToList();
+            }
+        }
         return list.Select(MapToResponse);
     }
 

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.DTOs.Admin.AuditLog;
+using UIS.Application.DTOs.Filters;
 using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 
@@ -75,7 +76,7 @@ public class AuditLogService : IAuditLogService
     }
 
     // GET ALL
-    public async Task<IEnumerable<AuditLogResponse>> GetAllAsync()
+    public async Task<IEnumerable<AuditLogResponse>> GetAllAsync(AuditLogFilterRequest filter)
     {
         var logs = await _unitOfWork.Repository<AuditLog>()
             .GetQueryable()
@@ -83,6 +84,19 @@ public class AuditLogService : IAuditLogService
             .OrderByDescending(al => al.Timestamp)
             .ToListAsync();
 
+        if (filter != null)
+        {
+            if (filter.UserId.HasValue)
+                logs = logs.Where(al => al.UserId == filter.UserId.Value).ToList();
+            if (filter.FromDate.HasValue)
+                logs = logs.Where(al => al.Timestamp >= filter.FromDate.Value).ToList();
+            if (filter.ToDate.HasValue)
+                logs = logs.Where(al => al.Timestamp <= filter.ToDate.Value).ToList();
+            if (filter.Action != null)
+                logs = logs.Where(al => al.Action == filter.Action).ToList();
+            if (filter.EntityType != null)
+                logs = logs.Where(al => al.EntityType == filter.EntityType).ToList();
+        }
         return logs.Select(MapToResponse);
     }
 

@@ -50,11 +50,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowVueApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
 
+app.UseCors("AllowVueApp");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
