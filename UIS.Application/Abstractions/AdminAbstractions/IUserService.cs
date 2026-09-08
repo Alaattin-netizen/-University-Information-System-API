@@ -3,6 +3,7 @@ using UIS.Application.DTOs.Filters;
 
 public interface IUserService
 {
+    Task<UserResponse> CreateUserAsync(CreateUserRequest request);
     Task<UserResponse> CreateStudentAsync(CreateStudentRequest request);
     Task<UserResponse> CreateInstructorAsync(CreateInstructorRequest request);
     Task<UserResponse> CreateAdminAsync(CreateAdminRequest request); // ✅ Added

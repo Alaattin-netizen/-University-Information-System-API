@@ -6,4 +6,5 @@ public interface IMessageService
 {
     Task SendMessageAsync(int studentId,  SendMessageRequest request);
     Task<IEnumerable<MessageResponse>> GetSentMessagesAsync(int studentId);
+    Task<IEnumerable<UIS.Application.DTOs.Admin.Message.MessageResponse>> GetReceivedMessagesAsync(int instructorId);
 }

@@ -17,17 +17,44 @@ public class EnrollmentService : IEnrollmentService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IEnumerable<CourseResponse>> GetOpenCoursesAsync()
+    public async Task<IEnumerable<CourseResponse>> GetOpenCoursesAsync(int studentId)
     {
         var offerings = await _unitOfWork.Repository<CourseOffering>()
             .GetQueryable()
             .Include(o => o.Course)              // ✅ MUST INCLUDE THIS
+                .ThenInclude(c => c.PrerequisiteCourse)
             .Include(o => o.Enrollments)          // ✅ MUST INCLUDE THIS
             .Include(o => o.Semester)             // ✅ If you filter by Semester.IsActive
+            .Include(o => o.Instructor)
             .Where(o => o.Semester.IsActive)      // Now Semester is loaded
             .ToListAsync();
 
-        return offerings.Select(o => new CourseResponse
+        var completedEnrollments = await _unitOfWork.Repository<Enrollment>()
+            .GetQueryable()
+            .Where(e => e.StudentId == studentId && e.LetterGrade != null)
+            .Include(e => e.CourseOffering)
+            .ToListAsync();
+
+        var completedCourseIds = completedEnrollments
+            .Where(e => !e.LetterGrade!.Equals("FF", StringComparison.OrdinalIgnoreCase))
+            .Select(e => e.CourseOffering.CourseId)
+            .ToHashSet();
+
+        var currentEnrollments = await _unitOfWork.Repository<Enrollment>()
+            .GetQueryable()
+            .Where(e => e.StudentId == studentId
+                && e.IsActive
+                && e.CourseOffering.Semester.IsActive)
+            .Include(e => e.CourseOffering)
+            .ToListAsync();
+
+        return offerings
+            .Where(o => !o.Course.PrerequisiteCourseId.HasValue
+                || completedCourseIds.Contains(o.Course.PrerequisiteCourseId.Value))
+            .Where(o => !currentEnrollments.Any(e =>
+                SchedulesOverlap(e.CourseOffering, o)))
+            .Where(o => o.EndTime > o.StartTime)
+            .Select(o => new CourseResponse
         {
             Id = o.Id,
             Code = o.Course.Code,
@@ -36,8 +63,13 @@ public class EnrollmentService : IEnrollmentService
             Quota = o.Course.Quota,
             AvailableSlots = o.Course.Quota - o.Enrollments.Count,
             HasPrerequisite = o.Course.PrerequisiteCourseId.HasValue,
-            PrerequisiteCode = o.Course.PrerequisiteCourse?.Code
-        });
+            PrerequisiteCode = o.Course.PrerequisiteCourse?.Code,
+            Day = o.Day.ToString(),
+            StartTime = o.StartTime.ToString(@"hh\:mm"),
+            EndTime = o.EndTime.ToString(@"hh\:mm"),
+            Classroom = o.Classroom,
+            InstructorName = $"{o.Instructor.FirstName} {o.Instructor.LastName}"
+            });
     }
     public async Task<IEnumerable<EnrollmentResponse>> GetActiveEnrollmentsAsync(int studentId)
     {
@@ -45,17 +77,29 @@ public class EnrollmentService : IEnrollmentService
             .GetQueryable()
             .Include(e => e.CourseOffering)
                 .ThenInclude(o => o.Course)
-            .Where(e => e.StudentId == studentId && e.IsActive)
+            .Include(e => e.CourseOffering)
+                .ThenInclude(o => o.Instructor)
+            .Include(e => e.CourseOffering)
+                .ThenInclude(o => o.Semester)
+            .Where(e => e.StudentId == studentId
+                        && e.IsActive
+                        && e.CourseOffering.Semester.IsActive)
             .ToListAsync();
 
         return enrollments.Select(e => new EnrollmentResponse
         {
             Id = e.Id,
+            CourseOfferingId = e.CourseOfferingId,
             CourseCode = e.CourseOffering.Course.Code,
             CourseName = e.CourseOffering.Course.Name,
             Credits = e.CourseOffering.Course.Credits,
             LetterGrade = e.LetterGrade,
             GradePoint = e.GradePoint,
+            Day = e.CourseOffering.Day.ToString(),
+            StartTime = e.CourseOffering.StartTime.ToString(@"hh\:mm"),
+            EndTime = e.CourseOffering.EndTime.ToString(@"hh\:mm"),
+            Classroom = e.CourseOffering.Classroom,
+            InstructorName = $"{e.CourseOffering.Instructor.FirstName} {e.CourseOffering.Instructor.LastName}",
             // Add any other properties you need (e.g., Midterm, Final, etc.)
         });
     }
@@ -74,7 +118,16 @@ public class EnrollmentService : IEnrollmentService
             .FirstOrDefaultAsync(o => o.Id == courseOfferingId);
 
         if (offering == null)
-            throw new Exception("Course offering not found.");
+            throw new InvalidOperationException("Course offering not found.");
+
+        if (offering.EndTime <= offering.StartTime)
+            throw new InvalidOperationException("This course offering has an invalid schedule.");
+
+        if (await _unitOfWork.Repository<Enrollment>().GetFirstAsync(
+                e => e.StudentId == studentId
+                    && e.CourseOfferingId == courseOfferingId
+                    && e.IsActive) != null)
+            throw new InvalidOperationException("You are already enrolled in this course.");
 
         if (DateTime.UtcNow > offering.Semester.RegistrationEnd)
             throw new InvalidOperationException("Registration period has ended.");
@@ -82,7 +135,7 @@ public class EnrollmentService : IEnrollmentService
             throw new InvalidOperationException("Registration period has not started yet.");
         // 2. Check Quota
         if (offering.Enrollments.Count >= offering.Course.Quota)
-            throw new Exception("Course quota is full.");
+            throw new InvalidOperationException("Course quota is full.");
 
         // 3. Check Prerequisite
         if (offering.Course.PrerequisiteCourseId.HasValue)
@@ -96,7 +149,8 @@ public class EnrollmentService : IEnrollmentService
 
             var hasPrereq = studentEnrollments.Any(e =>
                 e.CourseOffering.Course.Id == offering.Course.PrerequisiteCourseId &&
-                e.LetterGrade != "FF" && e.LetterGrade != "DD");
+                !string.IsNullOrWhiteSpace(e.LetterGrade) &&
+                !e.LetterGrade.Equals("FF", StringComparison.OrdinalIgnoreCase));
 
             if (!hasPrereq)
                 throw new InvalidOperationException("Prerequisite course not completed.");
@@ -106,14 +160,15 @@ public class EnrollmentService : IEnrollmentService
         var enrollmentRepo = _unitOfWork.Repository<Enrollment>();
         var existingEnrollments = await enrollmentRepo
             .GetQueryable()
-            .Where(e => e.StudentId == studentId && e.IsActive)
+            .Where(e => e.StudentId == studentId
+                        && e.IsActive
+                        && e.CourseOffering.SemesterId == offering.SemesterId)
             .Include(e => e.CourseOffering)
+                .ThenInclude(o => o.Course)
             .ToListAsync();
 
         var hasConflict = existingEnrollments.Any(e =>
-            e.CourseOffering.Day == offering.Day &&
-            ((e.CourseOffering.StartTime <= offering.StartTime && offering.StartTime < e.CourseOffering.EndTime) ||
-             (e.CourseOffering.StartTime < offering.EndTime && offering.EndTime <= e.CourseOffering.EndTime)));
+            SchedulesOverlap(e.CourseOffering, offering));
 
         if (hasConflict)
             throw new InvalidOperationException("Schedule conflict detected.");
@@ -137,6 +192,18 @@ public class EnrollmentService : IEnrollmentService
 
         await enrollmentRepo.AddAsync(enrollment);
         await _unitOfWork.SaveChangesAsync();
+    }
+
+    private static bool SchedulesOverlap(CourseOffering first, CourseOffering second)
+    {
+        if (first.Day != second.Day)
+            return false;
+
+        if (first.EndTime <= first.StartTime || second.EndTime <= second.StartTime)
+            return true;
+
+        return first.StartTime < second.EndTime
+            && second.StartTime < first.EndTime;
     }
     public async Task DropAsync(int studentId, int enrollmentId)
     {

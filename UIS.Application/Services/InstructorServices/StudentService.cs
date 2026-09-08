@@ -19,6 +19,17 @@ public class StudentService : IStudentService
     // 3. Enter/Update grades for a student
     public async Task EnterGradesAsync(int instructorId, GradeEntryRequest request)
     {
+        var scores = new[]
+        {
+            request.MidtermScore,
+            request.FinalScore,
+            request.AssignmentScore,
+            request.MakeupScore,
+        };
+
+        if (scores.Any(score => score.HasValue && (score.Value < 0 || score.Value > 100)))
+            throw new InvalidOperationException("Grades must be between 0 and 100.");
+
         Console.WriteLine($"Received: Midterm={request.MidtermScore}, Final={request.FinalScore}, Assignment={request.AssignmentScore}, Makeup={request.MakeupScore}");
         var enrollment = await _unitOfWork.Repository<Enrollment>()
             .GetQueryable()
@@ -27,11 +38,11 @@ public class StudentService : IStudentService
             .FirstOrDefaultAsync(e => e.Id == request.EnrollmentId);
 
         if (enrollment == null)
-            throw new Exception("Enrollment not found.");
+            throw new InvalidOperationException("Enrollment not found.");
 
         // Verify the instructor owns this course
         if (enrollment.CourseOffering.InstructorId != instructorId)
-            throw new Exception("You don't have permission to grade this student.");
+            throw new InvalidOperationException("You don't have permission to grade this student.");
 
         // Update scores
         enrollment.MidtermScore = request.MidtermScore;
@@ -76,12 +87,15 @@ public class StudentService : IStudentService
     // 4. Enter attendance for a student
     public async Task EnterAttendanceAsync(int instructorId, AttendanceEntryRequest request)
     {
-        // Find the course offering taught by this instructor
+        // Verify the selected offering belongs to this instructor and active semester.
         var offering = await _unitOfWork.Repository<CourseOffering>().GetQueryable()
-            .FirstOrDefaultAsync(o => o.InstructorId == instructorId);
+            .Include(o => o.Semester)
+            .FirstOrDefaultAsync(o => o.Id == request.CourseOfferingId
+                                      && o.InstructorId == instructorId
+                                      && o.Semester.IsActive);
 
         if (offering == null)
-            throw new Exception("You don't have permission to enter attendance for this course.");
+            throw new InvalidOperationException("Course offering not found or you don't have permission.");
 
         // Check if student is enrolled in this course
         var enrollment = await _unitOfWork.Repository<Enrollment>().GetQueryable()
@@ -90,7 +104,7 @@ public class StudentService : IStudentService
                                       e.IsActive);
 
         if (enrollment == null)
-            throw new Exception("Student is not enrolled in this course.");
+            throw new InvalidOperationException("Student is not enrolled in this course.");
 
         // Check if attendance already exists for this date
         var existingAttendance = await _unitOfWork.Repository<Attendance>()

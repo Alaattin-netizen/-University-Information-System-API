@@ -22,14 +22,18 @@ public class CourseOfferingService : ICourseOfferingService
         var semester = await _unitOfWork.Repository<Semester>().GetByIdAsync(request.SemesterId);
         if (semester == null) throw new InvalidOperationException("Semester not found.");
 
+        var startTime = TimeSpan.Parse(request.StartTime);
+        var endTime = TimeSpan.Parse(request.EndTime);
+        ValidateSchedule(startTime, endTime);
+
         var offering = new CourseOffering
         {
             CourseId = request.CourseId,
             InstructorId = request.InstructorId,
             SemesterId = request.SemesterId,
             Day = (DayOfWeek)request.Day,
-            StartTime = TimeSpan.Parse(request.StartTime),
-            EndTime = TimeSpan.Parse(request.EndTime),
+            StartTime = startTime,
+            EndTime = endTime,
             Classroom = request.Classroom
         };
 
@@ -64,11 +68,18 @@ public class CourseOfferingService : ICourseOfferingService
         if (request.Day.HasValue) offering.Day = (DayOfWeek)request.Day.Value;
         if (!string.IsNullOrEmpty(request.StartTime)) offering.StartTime = TimeSpan.Parse(request.StartTime);
         if (!string.IsNullOrEmpty(request.EndTime)) offering.EndTime = TimeSpan.Parse(request.EndTime);
+        ValidateSchedule(offering.StartTime, offering.EndTime);
         if (!string.IsNullOrEmpty(request.Classroom)) offering.Classroom = request.Classroom;
 
         _unitOfWork.Repository<CourseOffering>().Update(offering);
         await _unitOfWork.SaveChangesAsync();
         return await GetByIdAsync(offering.Id);
+    }
+
+    private static void ValidateSchedule(TimeSpan startTime, TimeSpan endTime)
+    {
+        if (endTime <= startTime)
+            throw new InvalidOperationException("Course offering end time must be after its start time.");
     }
 
     public async Task DeleteAsync(int id)

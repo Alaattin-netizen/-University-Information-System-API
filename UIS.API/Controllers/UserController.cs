@@ -60,6 +60,30 @@ public class UserController : BaseApiController
     // ============================================================
     // CREATE STUDENT (Admin only)
     // ============================================================
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+    {
+        try
+        {
+            var result = await _userService.CreateUserAsync(request);
+            await _loggingHelper.LogOperationAsync(
+                "Created",
+                "User",
+                result.Id,
+                $"Email: {request.Email}; Roles: {string.Join(", ", result.Roles)}",
+                GetCurrentUserId(),
+                GetCurrentUserEmail(),
+                GetCurrentUserRoles()
+            );
+            return CreatedAtAction(nameof(GetUserById), new { id = result.Id }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("student")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateStudent([FromBody] CreateStudentRequest request)

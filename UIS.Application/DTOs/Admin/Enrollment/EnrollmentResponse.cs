@@ -17,4 +17,9 @@ public class EnrollmentResponse
     public double? TotalScore { get; set; }
     public string LetterGrade { get; set; }
     public double? GradePoint { get; set; }
+    public string Day { get; set; }
+    public string StartTime { get; set; }
+    public string EndTime { get; set; }
+    public string Classroom { get; set; }
+    public string InstructorName { get; set; }
 }

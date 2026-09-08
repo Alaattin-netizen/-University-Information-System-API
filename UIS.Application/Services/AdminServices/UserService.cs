@@ -16,6 +16,70 @@ public class UserService : IUserService
         _unitOfWork = unitOfWork;
     }
 
+    public async Task<UserResponse> CreateUserAsync(CreateUserRequest request)
+    {
+        var existing = await _unitOfWork.Repository<User>()
+            .GetFirstAsync(u => u.Email == request.Email);
+
+        if (existing != null)
+            throw new InvalidOperationException("Email already registered.");
+
+        var roleNames = (request.Roles ?? new List<string>())
+            .Where(role => !string.IsNullOrWhiteSpace(role))
+            .Select(role => role.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (roleNames.Count == 0)
+            throw new InvalidOperationException("Select at least one role.");
+
+        var roles = await _unitOfWork.Repository<Role>()
+            .GetQueryable()
+            .Where(role => roleNames.Contains(role.Name))
+            .ToListAsync();
+
+        var missingRole = roleNames.FirstOrDefault(roleName =>
+            !roles.Any(role => role.Name.Equals(roleName, StringComparison.OrdinalIgnoreCase)));
+        if (missingRole != null)
+            throw new InvalidOperationException($"Role '{missingRole}' does not exist.");
+
+        var hasStudentRole = roles.Any(role => role.Name.Equals("Student", StringComparison.OrdinalIgnoreCase));
+        var hasInstructorRole = roles.Any(role => role.Name.Equals("Instructor", StringComparison.OrdinalIgnoreCase));
+
+        await ValidateReferencesAsync(request.DepartmentId, request.AdvisorId, hasInstructorRole);
+
+        var user = new User
+        {
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Email = request.Email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            DepartmentId = request.DepartmentId,
+            AdvisorId = hasStudentRole ? request.AdvisorId : null
+        };
+
+        await _unitOfWork.Repository<User>().AddAsync(user);
+        await _unitOfWork.SaveChangesAsync();
+
+        foreach (var role in roles)
+            await _unitOfWork.Repository<UserRole>().AddAsync(new UserRole { UserId = user.Id, RoleId = role.Id });
+
+        await _unitOfWork.SaveChangesAsync();
+
+        return new UserResponse
+        {
+            Id = user.Id,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
+            Roles = roles.Select(role => role.Name).ToList(),
+            DepartmentId = user.DepartmentId,
+            AdvisorId = user.AdvisorId,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+    }
+
     // ======================================================
     // CREATE STUDENT
     // ======================================================
@@ -27,6 +91,8 @@ public class UserService : IUserService
 
         if (existing != null)
             throw new InvalidOperationException("Email already registered.");
+
+        await ValidateReferencesAsync(request.DepartmentId, request.AdvisorId, false);
 
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
@@ -80,6 +146,8 @@ public class UserService : IUserService
         if (existing != null)
             throw new InvalidOperationException("Email already registered.");
 
+        await ValidateReferencesAsync(request.DepartmentId, null, true);
+
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
         var user = new User
@@ -115,6 +183,35 @@ public class UserService : IUserService
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
+    }
+
+    private async Task ValidateReferencesAsync(int? departmentId, int? advisorId, bool instructorRoleSelected)
+    {
+        if (departmentId.HasValue)
+        {
+            var department = await _unitOfWork.Repository<Department>().GetByIdAsync(departmentId.Value);
+            if (department == null)
+                throw new InvalidOperationException($"Department ID {departmentId.Value} does not exist.");
+        }
+        else if (instructorRoleSelected)
+        {
+            throw new InvalidOperationException("Department ID is required for an instructor.");
+        }
+
+        if (advisorId.HasValue)
+        {
+            var advisor = await _unitOfWork.Repository<User>()
+                .GetQueryable()
+                .Include(user => user.UserRoles)
+                    .ThenInclude(userRole => userRole.Role)
+                .FirstOrDefaultAsync(user => user.Id == advisorId.Value);
+
+            if (advisor == null)
+                throw new InvalidOperationException($"Advisor ID {advisorId.Value} does not exist.");
+
+            if (!advisor.UserRoles.Any(userRole => userRole.Role.Name == "Instructor"))
+                throw new InvalidOperationException($"Advisor ID {advisorId.Value} does not belong to an instructor.");
+        }
     }
 
     // ======================================================

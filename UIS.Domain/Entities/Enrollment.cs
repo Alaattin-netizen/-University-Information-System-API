@@ -14,7 +14,6 @@ public class Enrollment
     public DateTime EnrollmentDate { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;
 
-    // Grade fields (merged)
     public double? MidtermScore { get; set; }
     public double? FinalScore { get; set; }
     public double? AssignmentScore { get; set; }

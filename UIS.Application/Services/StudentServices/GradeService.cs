@@ -20,7 +20,9 @@ public class GradeService : IGradeService
         var enrollments = await _unitOfWork.Repository<Enrollment>()
             .GetQueryable()
             .Include(e => e.CourseOffering)
-                .ThenInclude(o => o.Course)   
+                .ThenInclude(o => o.Course)
+            .Include(e => e.CourseOffering)
+                .ThenInclude(o => o.Semester)
             .Where(e => e.StudentId == studentId && e.IsActive && e.LetterGrade != null)
             .ToListAsync();
 
@@ -30,10 +32,13 @@ public class GradeService : IGradeService
             CourseName = e.CourseOffering.Course.Name,
             Credits = e.CourseOffering.Course.Credits,
             Midterm = e.MidtermScore,
+            Assignment = e.AssignmentScore,
+            Makeup = e.MakeupScore,
             Final = e.FinalScore,
             TotalScore = e.TotalScore,
             LetterGrade = e.LetterGrade,
-            GradePoint = e.GradePoint ?? 0
+            GradePoint = e.GradePoint ?? 0,
+            SemesterName = e.CourseOffering.Semester.Name
         });
     }
 
@@ -46,6 +51,8 @@ public class GradeService : IGradeService
             .GetQueryable()
             .Include(e => e.CourseOffering)
                 .ThenInclude(o => o.Course)
+            .Include(e => e.CourseOffering)
+                .ThenInclude(o => o.Semester)
             .Where(e => e.StudentId == studentId && e.IsActive && e.LetterGrade != null)
             .ToListAsync();
 
@@ -89,7 +96,30 @@ public class GradeService : IGradeService
 
     public async Task<IEnumerable<GradeResponse>> GetTranscriptAsync(int studentId)
     {
-        // Same as GetGradesAsync, but typically includes ALL semesters
-        return await GetGradesAsync(studentId);
+        var enrollments = await _unitOfWork.Repository<Enrollment>()
+            .GetQueryable()
+            .Include(e => e.CourseOffering)
+                .ThenInclude(o => o.Course)
+            .Include(e => e.CourseOffering)
+                .ThenInclude(o => o.Semester)
+            .Where(e => e.StudentId == studentId && e.IsActive)
+            .OrderByDescending(e => e.CourseOffering.Semester.StartDate)
+            .ThenBy(e => e.CourseOffering.Course.Code)
+            .ToListAsync();
+
+        return enrollments.Select(e => new GradeResponse
+        {
+            CourseCode = e.CourseOffering.Course.Code,
+            CourseName = e.CourseOffering.Course.Name,
+            Credits = e.CourseOffering.Course.Credits,
+            Midterm = e.MidtermScore,
+            Assignment = e.AssignmentScore,
+            Makeup = e.MakeupScore,
+            Final = e.FinalScore,
+            TotalScore = e.TotalScore,
+            LetterGrade = e.LetterGrade,
+            GradePoint = e.GradePoint ?? 0,
+            SemesterName = e.CourseOffering.Semester.Name
+        });
     }
 }

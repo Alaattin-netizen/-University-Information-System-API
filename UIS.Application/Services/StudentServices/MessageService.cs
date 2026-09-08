@@ -35,12 +35,39 @@ public class MessageService : IMessageService
             IsRead = m.IsRead
         });
     }
+
+    public async Task<IEnumerable<UIS.Application.DTOs.Admin.Message.MessageResponse>> GetReceivedMessagesAsync(int instructorId)
+    {
+        var messages = await _unitOfWork.Repository<Message>()
+            .GetQueryable()
+            .Include(m => m.Sender)
+            .Include(m => m.Receiver)
+            .Where(m => m.ReceiverInstructorId == instructorId)
+            .OrderByDescending(m => m.SentDate)
+            .ToListAsync();
+
+        return messages.Select(m => new UIS.Application.DTOs.Admin.Message.MessageResponse
+        {
+            Id = m.Id,
+            SenderStudentId = m.SenderStudentId,
+            SenderName = $"{m.Sender.FirstName} {m.Sender.LastName}",
+            SenderEmail = m.Sender.Email,
+            ReceiverInstructorId = m.ReceiverInstructorId,
+            ReceiverName = $"{m.Receiver.FirstName} {m.Receiver.LastName}",
+            ReceiverEmail = m.Receiver.Email,
+            Subject = m.Subject,
+            Content = m.Content,
+            SentDate = m.SentDate,
+            IsRead = m.IsRead,
+            ReadDate = m.ReadDate,
+        });
+    }
     public async Task SendMessageAsync(int studentId, SendMessageRequest request)
     {
         var studentRepo = _unitOfWork.Repository<User>();
         var student = await studentRepo.GetByIdAsync(studentId);
 
-        if (student == null) throw new Exception("Student not found.");
+        if (student == null) throw new InvalidOperationException("Student not found.");
 
         var receiver = await _unitOfWork.Repository<User>()
         .GetQueryable()
@@ -49,12 +76,12 @@ public class MessageService : IMessageService
         .FirstOrDefaultAsync(u => u.Id == request.ReceiverInstructorId);
 
         if (receiver == null)
-            throw new Exception("Receiver not found.");
+            throw new InvalidOperationException("Receiver not found.");
 
         // ✅ 2. Verify the receiver has the "Instructor" role
         var isInstructor = receiver.UserRoles.Any(ur => ur.Role.Name == "Instructor");
         if (!isInstructor)
-            throw new Exception("You can only send messages to instructors.");
+            throw new InvalidOperationException("You can only send messages to instructors.");
 
         var message = new Message
         {

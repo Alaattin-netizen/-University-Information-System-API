@@ -5,7 +5,7 @@ namespace UIS.Application.Abstractions.StudentAbstractions;
 
 public interface IEnrollmentService
 {
-    Task<IEnumerable<CourseResponse>> GetOpenCoursesAsync();
+    Task<IEnumerable<CourseResponse>> GetOpenCoursesAsync(int studentId);
     Task EnrollAsync(int studentId, int courseOfferingId);
     Task DropAsync(int studentId, int enrollmentId);
     Task<IEnumerable<EnrollmentResponse>> GetActiveEnrollmentsAsync(int studentId);

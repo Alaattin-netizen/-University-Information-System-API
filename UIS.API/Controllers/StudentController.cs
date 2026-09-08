@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using UIS.Infrastructure.Repositories;
 using System.Security.Claims;
 using UIS.Application.Abstractions.StudentAbstractions;
@@ -48,7 +49,7 @@ public class StudentController : BaseApiController
     [HttpGet("open-courses")]
     public async Task<IActionResult> GetOpenCourses()
     {
-        var courses = await _enrollmentService.GetOpenCoursesAsync();
+        var courses = await _enrollmentService.GetOpenCoursesAsync(GetStudentId());
         return Ok(courses);
     }
 
@@ -56,24 +57,34 @@ public class StudentController : BaseApiController
     [HttpPost("enroll")]
     public async Task<IActionResult> Enroll([FromBody] EnrollRequest request)
     {
-        // Call the service (it now saves the enrollment)
-        await _enrollmentService.EnrollAsync(GetStudentId(), request.CourseOfferingId);
+        try
+        {
+            await _enrollmentService.EnrollAsync(GetStudentId(), request.CourseOfferingId);
 
-        // Since we don't return the ID from the service, fetch it
-        var enrollment = await _unitOfWork.Repository<Enrollment>()
-            .GetFirstAsync(e => e.StudentId == GetStudentId() && e.CourseOfferingId == request.CourseOfferingId && e.IsActive);
+            // Since we don't return the ID from the service, fetch it
+            var enrollment = await _unitOfWork.Repository<Enrollment>()
+                .GetFirstAsync(e => e.StudentId == GetStudentId() && e.CourseOfferingId == request.CourseOfferingId && e.IsActive);
 
-        await _loggingHelper.LogOperationAsync(
-            "Created",
-            "Enrollment",
-            enrollment?.Id,
-            $"StudentId: {GetStudentId()}, CourseOfferingId: {request.CourseOfferingId}",
-            GetCurrentUserId(),
-            GetCurrentUserEmail(),
-            GetCurrentUserRoles()
-        );
+            await _loggingHelper.LogOperationAsync(
+                "Created",
+                "Enrollment",
+                enrollment?.Id,
+                $"StudentId: {GetStudentId()}, CourseOfferingId: {request.CourseOfferingId}",
+                GetCurrentUserId(),
+                GetCurrentUserEmail(),
+                GetCurrentUserRoles()
+            );
 
-        return Ok(new { message = "Successfully enrolled." });
+            return Ok(new { message = "Successfully enrolled." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     // 2. Drop a course
@@ -129,17 +140,24 @@ public class StudentController : BaseApiController
     [HttpPost("message")]
     public async Task<IActionResult> SendMessage( [FromBody] SendMessageRequest request)
     {
-        await _messageService.SendMessageAsync(GetStudentId(), request);
-        await _loggingHelper.LogOperationAsync(
-       "Created",
-       "Message",
-       null, // ID not returned
-       $"Subject: {request.Subject}, To: Advisor",
-       GetCurrentUserId(),
-       GetCurrentUserEmail(),
-       GetCurrentUserRoles()
-   );
-        return Ok(new { message = "Message sent to advisor." });
+        try
+        {
+            await _messageService.SendMessageAsync(GetStudentId(), request);
+            await _loggingHelper.LogOperationAsync(
+                "Created",
+                "Message",
+                null,
+                $"Subject: {request.Subject}, To instructor {request.ReceiverInstructorId}",
+                GetCurrentUserId(),
+                GetCurrentUserEmail(),
+                GetCurrentUserRoles()
+            );
+            return Ok(new { message = "Message sent to instructor." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
 
@@ -157,5 +175,27 @@ public class StudentController : BaseApiController
         var studentId = GetStudentId();
         var messages = await _messageService.GetSentMessagesAsync(studentId);
         return Ok(messages);
+    }
+
+    [HttpGet("instructors")]
+    public async Task<IActionResult> GetInstructors()
+    {
+        var instructors = await _unitOfWork.Repository<User>()
+            .GetQueryable()
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .Where(u => u.UserRoles.Any(ur => ur.Role.Name == "Instructor"))
+            .OrderBy(u => u.FirstName)
+            .ThenBy(u => u.LastName)
+            .Select(u => new
+            {
+                id = u.Id,
+                firstName = u.FirstName,
+                lastName = u.LastName,
+                email = u.Email,
+            })
+            .ToListAsync();
+
+        return Ok(instructors);
     }
 }

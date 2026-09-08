@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using UIS.Application.Abstractions.InstructorAbstractions;
 using UIS.Application.DTOs.Instructor;
+using UIS.Application.DTOs.Admin;
 using UIS.Infrastructure.Repositories;
 using UIS.Domain.Entities;
 namespace UIS.Application.Services.InstructorServices;
@@ -41,6 +42,14 @@ public class CourseService : ICourseService
         });
     }
 
+    public async Task<IEnumerable<CourseResponse>> GetMyCoursesForDateAsync(int instructorId, DateTime date)
+    {
+        var courses = await GetMyCoursesAsync(instructorId);
+        return courses.Where(course =>
+            Enum.TryParse<DayOfWeek>(course.Day, true, out var day)
+            && day == date.DayOfWeek);
+    }
+
     public async Task<IEnumerable<RegisteredStudentResponse>> GetRegisteredStudentsAsync(int instructorId, int courseOfferingId)
     {
         // Verify the instructor owns this course offering
@@ -48,7 +57,10 @@ public class CourseService : ICourseService
             .GetQueryable()
             .Include(o => o.Enrollments)
                 .ThenInclude(e => e.Student)
-            .FirstOrDefaultAsync(o => o.Id == courseOfferingId && o.InstructorId == instructorId);
+                .Include(o => o.Semester)
+                .FirstOrDefaultAsync(o => o.Id == courseOfferingId
+                                          && o.InstructorId == instructorId
+                                          && o.Semester.IsActive);
 
         if (offering == null)
             throw new Exception("Course offering not found or you don't have permission.");
@@ -113,9 +125,28 @@ public class CourseService : ICourseService
 
         await _unitOfWork.Repository<Announcement>().AddAsync(announcement);
         await _unitOfWork.SaveChangesAsync();
+    }
 
-        
+    public async Task<IEnumerable<AnnouncementResponse>> GetAnnouncementsAsync(int instructorId, int courseOfferingId)
+    {
+        var announcements = await _unitOfWork.Repository<Announcement>()
+            .GetQueryable()
+            .Include(a => a.CourseOffering)
+                .ThenInclude(o => o.Course)
+            .Where(a => a.InstructorId == instructorId && a.CourseOfferingId == courseOfferingId)
+            .OrderByDescending(a => a.CreatedDate)
+            .ToListAsync();
 
+        return announcements.Select(a => new AnnouncementResponse
+        {
+            Id = a.Id,
+            Title = a.Title,
+            Content = a.Content,
+            CreatedDate = a.CreatedDate,
+            CourseOfferingId = a.CourseOfferingId,
+            InstructorId = a.InstructorId,
+            CourseCode = a.CourseOffering.Course.Code,
+        });
     }
 
    
