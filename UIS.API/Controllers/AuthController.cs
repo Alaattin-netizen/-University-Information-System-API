@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using UIS.Application.Abstractions;
 using UIS.Application.DTOs.Auth;
 using UIS.Application.Services;
@@ -8,7 +9,6 @@ namespace UIS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[AllowAnonymous]
 public class AuthController : BaseApiController
 {
     private readonly IAuthService _authService;
@@ -20,6 +20,7 @@ public class AuthController : BaseApiController
     }
 
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         try
@@ -37,8 +38,10 @@ public class AuthController : BaseApiController
                 result.Roles // List<string>
             );
 
+            SetAuthCookie(result.Token, result.ExpiresAt);
             return Ok(result);
         }
+
         catch (UnauthorizedAccessException ex)
         {
             // Log failed login attempt
@@ -56,7 +59,52 @@ public class AuthController : BaseApiController
         }
     }
 
+    [HttpGet("me")]
+    [Authorize]
+    public IActionResult Me()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        if (userId is null || email is null)
+            return Unauthorized();
+
+        return Ok(new AuthResponse
+        {
+            UserId = int.Parse(userId),
+            Email = email,
+            Roles = User.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToList(),
+            ExpiresAt = DateTime.UtcNow.AddMinutes(60),
+        });
+    }
+
+    [HttpPost("logout")]
+    [AllowAnonymous]
+    public IActionResult Logout()
+    {
+        Response.Cookies.Delete("uis_auth", new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = Request.IsHttps,
+            SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
+            Path = "/",
+        });
+        return NoContent();
+    }
+
+    private void SetAuthCookie(string token, DateTime expiresAt)
+    {
+        Response.Cookies.Append("uis_auth", token, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = Request.IsHttps,
+            SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
+            Expires = expiresAt,
+            Path = "/",
+        });
+    }
+
     [HttpPost("register")]
+    [AllowAnonymous]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         try
@@ -71,6 +119,7 @@ public class AuthController : BaseApiController
                 result.Email,
                 result.Roles // List<string>
             );
+            SetAuthCookie(result.Token, result.ExpiresAt);
             return Ok(result);
         }
         catch (InvalidOperationException ex)
