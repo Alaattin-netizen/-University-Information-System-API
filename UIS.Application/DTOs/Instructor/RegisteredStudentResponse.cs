@@ -16,4 +16,5 @@ public class RegisteredStudentResponse
     public double? GradePoint { get; set; }
     public int AttendanceCount { get; set; }
     public int TotalClasses { get; set; }
+    public bool? IsPresent { get; set; }
 }

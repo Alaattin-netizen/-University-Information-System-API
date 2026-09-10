@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using UIS.Application.Abstractions.InstructorAbstractions;
 using UIS.Application.Abstractions.StudentAbstractions;
+using UIS.Application.Abstractions.AdminAbstractions;
+using UIS.Application.DTOs.Filters;
 using UIS.Application.DTOs.Instructor;
 using UIS.Application.Services;
 namespace UIS.API.Controllers;
@@ -16,22 +18,62 @@ public class InstructorController : BaseApiController
     private readonly IStudentService _StudentService;
     private readonly LoggingHelper _loggingHelper;
     private readonly IMessageService _messageService;
+    private readonly IAttendanceService _attendanceService;
 
     public InstructorController(
         ICourseService courseService,
         IStudentService studentService,
         LoggingHelper loggingHelper,
-        IMessageService messageService)
+        IMessageService messageService,
+        IAttendanceService attendanceService)
     {
         _CourseService = courseService;
         _StudentService = studentService;
         _loggingHelper = loggingHelper;
         _messageService = messageService;
+        _attendanceService = attendanceService;
     }
 
     [HttpGet("messages")]
     public async Task<IActionResult> GetMessages()
         => Ok(await _messageService.GetReceivedMessagesAsync(GetInstructorId()));
+
+    [HttpGet("attendance/export")]
+    public async Task<IActionResult> ExportAttendance([FromQuery] AttendanceFilterRequest request)
+    {
+        var file = await _attendanceService.ExportAsync(request, GetInstructorId());
+        return File(file,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"attendance-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+    }
+
+    [HttpPost("attendance/import")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> ImportAttendance(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "An Excel file is required." });
+        if (!Path.GetExtension(file.FileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Only .xlsx files are supported." });
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            return Ok(await _attendanceService.ImportAsync(stream, GetInstructorId()));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex) when (ex is FormatException || ex.GetType().Namespace?.StartsWith("ClosedXML", StringComparison.Ordinal) == true)
+        {
+            return BadRequest(new { message = $"The attendance file could not be read: {ex.Message}" });
+        }
+    }
 
     private int GetInstructorId()
     {
@@ -48,11 +90,11 @@ public class InstructorController : BaseApiController
 
     // 2. List registered students for a course,
     [HttpGet("Responsible-Courses/{courseOfferingId}/Registered-Students")]
-    public async Task<IActionResult> GetRegisteredStudents(int courseOfferingId)
+    public async Task<IActionResult> GetRegisteredStudents(int courseOfferingId, [FromQuery] DateTime? date = null)
     {
         try
         {
-            var students = await _CourseService.GetRegisteredStudentsAsync(GetInstructorId(), courseOfferingId);
+            var students = await _CourseService.GetRegisteredStudentsAsync(GetInstructorId(), courseOfferingId, date);
             return Ok(students);
         }
 

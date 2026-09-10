@@ -50,7 +50,7 @@ public class CourseService : ICourseService
             && day == date.DayOfWeek);
     }
 
-    public async Task<IEnumerable<RegisteredStudentResponse>> GetRegisteredStudentsAsync(int instructorId, int courseOfferingId)
+    public async Task<IEnumerable<RegisteredStudentResponse>> GetRegisteredStudentsAsync(int instructorId, int courseOfferingId, DateTime? date = null)
     {
         // Verify the instructor owns this course offering
         var offering = await _unitOfWork.Repository<CourseOffering>()
@@ -83,6 +83,15 @@ public class CourseService : ICourseService
                 .Select(a => a.Date)
                 .Distinct()
                 .CountAsync();
+            var attendanceForDate = date.HasValue
+                ? await _unitOfWork.Repository<Attendance>()
+                    .GetQueryable()
+                    .Where(a => a.StudentId == enrollment.StudentId
+                        && a.CourseOfferingId == courseOfferingId
+                        && a.Date.Date == date.Value.Date)
+                    .Select(a => (bool?)a.IsPresent)
+                    .FirstOrDefaultAsync()
+                : null;
 
             result.Add(new RegisteredStudentResponse
             {
@@ -98,7 +107,8 @@ public class CourseService : ICourseService
                 LetterGrade = enrollment.LetterGrade,
                 GradePoint = enrollment.GradePoint,
                 AttendanceCount = attendanceCount,
-                TotalClasses = Math.Max(totalClasses, 1)
+                TotalClasses = Math.Max(totalClasses, 1),
+                IsPresent = attendanceForDate
             });
         }
 

@@ -86,4 +86,43 @@ public class AttendancesController : BaseApiController
         await _loggingHelper.LogOperationAsync("Deleted", "Attendance", id, $"ID: {id}", GetCurrentUserId(), GetCurrentUserEmail(), GetCurrentUserRoles());
         return NoContent();
     }
+
+    [HttpGet("export")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Export([FromQuery] AttendanceFilterRequest request)
+    {
+        var file = await _attendanceService.ExportAsync(request);
+        return File(file,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"attendance-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+    }
+
+    [HttpPost("import")]
+    [Authorize(Roles = "Admin")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> Import(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "An Excel file is required." });
+        if (!Path.GetExtension(file.FileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Only .xlsx files are supported." });
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            return Ok(await _attendanceService.ImportAsync(stream));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex) when (ex is FormatException || ex.GetType().Namespace?.StartsWith("ClosedXML", StringComparison.Ordinal) == true)
+        {
+            return BadRequest(new { message = $"The attendance file could not be read: {ex.Message}" });
+        }
+    }
 }

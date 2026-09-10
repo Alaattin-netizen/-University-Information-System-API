@@ -12,8 +12,13 @@ var builder = WebApplication.CreateBuilder(args);
 // 2. Add API-specific services
 builder.Services.AddControllers();
 builder.Services.AddApplicationServices(builder.Configuration);
-Console.WriteLine("✅ AddApplicationServices is being called!");
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration =
+        builder.Configuration.GetConnectionString("Redis");
 
+    options.InstanceName = "UIS:";
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

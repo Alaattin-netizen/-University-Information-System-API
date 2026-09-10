@@ -4,6 +4,9 @@ using System.Security.Claims;
 using UIS.Application.Abstractions;
 using UIS.Application.DTOs.Auth;
 using UIS.Application.Services;
+using UIS.Domain.Entities;
+using UIS.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace UIS.API.Controllers;
 
@@ -13,10 +16,12 @@ public class AuthController : BaseApiController
 {
     private readonly IAuthService _authService;
     private readonly LoggingHelper _loggingHelper;
-    public AuthController(IAuthService authService, LoggingHelper loggingHelper)
+    private readonly IUnitOfWork _unitOfWork;
+    public AuthController(IAuthService authService, LoggingHelper loggingHelper, IUnitOfWork unitOfWork)
     {
         _authService = authService;
         _loggingHelper = loggingHelper;
+        _unitOfWork = unitOfWork;
     }
 
     [HttpPost("login")]
@@ -61,17 +66,25 @@ public class AuthController : BaseApiController
 
     [HttpGet("me")]
     [Authorize]
-    public IActionResult Me()
+    public async Task<IActionResult> Me()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var email = User.FindFirstValue(ClaimTypes.Email);
         if (userId is null || email is null)
             return Unauthorized();
 
+        var user = await _unitOfWork.Repository<User>()
+            .GetQueryable()
+            .FirstOrDefaultAsync(user => user.Id == int.Parse(userId));
+        if (user is null)
+            return Unauthorized();
+
         return Ok(new AuthResponse
         {
-            UserId = int.Parse(userId),
-            Email = email,
+            UserId = user.Id,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
             Roles = User.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToList(),
             ExpiresAt = DateTime.UtcNow.AddMinutes(60),
         });

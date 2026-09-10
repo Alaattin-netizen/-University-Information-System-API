@@ -7,7 +7,7 @@ public interface ICourseService  // ✅ MUST be public
 {
     Task<IEnumerable<CourseResponse>> GetMyCoursesAsync(int instructorId);
     Task<IEnumerable<CourseResponse>> GetMyCoursesForDateAsync(int instructorId, DateTime date);
-    Task<IEnumerable<RegisteredStudentResponse>> GetRegisteredStudentsAsync(int instructorId, int courseOfferingId);
+    Task<IEnumerable<RegisteredStudentResponse>> GetRegisteredStudentsAsync(int instructorId, int courseOfferingId, DateTime? date = null);
     Task CreateAnnouncementAsync(int instructorId, CreateAnnouncementRequest request);
     Task<IEnumerable<AnnouncementResponse>> GetAnnouncementsAsync(int instructorId, int courseOfferingId);
 }
