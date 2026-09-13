@@ -41,8 +41,6 @@ public class AttendancesController : BaseApiController
         {
             return Ok(await _attendanceService.GetByStudentAsync(studentId));
         }
-        // For instructors: they can see attendance for students in their courses, but we'd need to check.
-        // For simplicity, we keep this as Admin-only or self.
         return Forbid();
     }
 

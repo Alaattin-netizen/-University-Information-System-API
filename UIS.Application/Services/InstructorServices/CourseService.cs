@@ -1,24 +1,44 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Hangfire;
+using Microsoft.EntityFrameworkCore;
+using UIS.Application.Abstractions;
 using UIS.Application.Abstractions.InstructorAbstractions;
-using UIS.Application.DTOs.Instructor;
 using UIS.Application.DTOs.Admin;
-using UIS.Infrastructure.Repositories;
+using UIS.Application.DTOs.Instructor;
 using UIS.Domain.Entities;
+using UIS.Infrastructure.Repositories;
 namespace UIS.Application.Services.InstructorServices;
 
 public class CourseService : ICourseService
 {
     private readonly IUnitOfWork _unitOfWork;
-
-    public CourseService(IUnitOfWork unitOfWork)
+    private readonly ICacheService _cache;
+    private readonly IBackgroundJobService _backgroundJobs;
+    public CourseService(IUnitOfWork unitOfWork, ICacheService cache, IBackgroundJobService backgroundJobs)
 
     {
         _unitOfWork = unitOfWork;
+        _cache = cache;
+        _backgroundJobs = backgroundJobs;
     }
 
-    // 1. List courses the instructor is responsible for
     public async Task<IEnumerable<CourseResponse>> GetMyCoursesAsync(int instructorId)
     {
+        var cacheKey = $"instructor-courses:{instructorId}";
+
+        var cachedCourses =
+            await _cache.GetAsync<List<CourseResponse>>(cacheKey);
+
+        if (cachedCourses is not null)
+        {
+            Console.WriteLine(
+                $"REDIS HIT: {cacheKey} - {cachedCourses.Count} courses"
+            );
+
+            return cachedCourses;
+        }
+
+        Console.WriteLine($"REDIS MISS: {cacheKey}");
+
         var offerings = await _unitOfWork.Repository<CourseOffering>()
             .GetQueryable()
             .Include(o => o.Course)
@@ -27,7 +47,7 @@ public class CourseService : ICourseService
             .Where(o => o.InstructorId == instructorId && o.Semester.IsActive)
             .ToListAsync();
 
-        return offerings.Select(o => new CourseResponse
+        var result = offerings.Select(o => new CourseResponse
         {
             CourseOfferingId = o.Id,
             CourseCode = o.Course.Code,
@@ -39,20 +59,77 @@ public class CourseService : ICourseService
             Classroom = o.Classroom,
             EnrolledStudentsCount = o.Enrollments.Count(e => e.IsActive),
             Quota = o.Course.Quota
-        });
+        }).ToList();
+
+        await _cache.SetAsync(
+            cacheKey,
+            result,
+            TimeSpan.FromMinutes(10)
+        );
+
+        Console.WriteLine(
+            $"REDIS SET: {cacheKey} - {result.Count} courses"
+        );
+
+        return result;
     }
 
     public async Task<IEnumerable<CourseResponse>> GetMyCoursesForDateAsync(int instructorId, DateTime date)
     {
+        var cacheKey = $"instructor-courses:{instructorId}:{date:yyyy-MM-dd}";
+
+        var cachedCourses =
+            await _cache.GetAsync<List<CourseResponse>>(cacheKey);
+
+        if (cachedCourses is not null)
+        {
+            Console.WriteLine(
+                $"REDIS HIT: {cacheKey} - {cachedCourses.Count} courses"
+            );
+
+            return cachedCourses;
+        }
+
+        Console.WriteLine($"REDIS MISS: {cacheKey}");
+
         var courses = await GetMyCoursesAsync(instructorId);
-        return courses.Where(course =>
+        var result = courses.Where(course =>
             Enum.TryParse<DayOfWeek>(course.Day, true, out var day)
-            && day == date.DayOfWeek);
+            && day == date.DayOfWeek).ToList();
+
+        await _cache.SetAsync(
+          cacheKey,
+          result,
+          TimeSpan.FromMinutes(10)
+      );
+
+        Console.WriteLine(
+            $"REDIS SET: {cacheKey} - {result.Count} courses"
+        );
+        return result;
     }
 
     public async Task<IEnumerable<RegisteredStudentResponse>> GetRegisteredStudentsAsync(int instructorId, int courseOfferingId, DateTime? date = null)
     {
-        // Verify the instructor owns this course offering
+        Console.WriteLine(
+       $"===== GetRegisteredStudentsAsync CALLED: instructor={instructorId}, offering={courseOfferingId} ====="
+   );
+        var cacheKey =
+            $"registered-students:{instructorId}:{courseOfferingId}:{date?.Date:yyyy-MM-dd}";
+        var cachedStudents =
+       await _cache.GetAsync<List<RegisteredStudentResponse>>(cacheKey);
+
+        if (cachedStudents is not null)
+        {
+            Console.WriteLine(
+    $"REDIS HIT: {cacheKey} - {cachedStudents.Count} students"
+);
+
+            return cachedStudents;
+        }
+
+        Console.WriteLine($"REDIS MISS: {cacheKey}");
+
         var offering = await _unitOfWork.Repository<CourseOffering>()
             .GetQueryable()
             .Include(o => o.Enrollments)
@@ -70,13 +147,11 @@ public class CourseService : ICourseService
 
         foreach (var enrollment in enrollments)
         {
-            // Get attendance count for this student in this course
             var attendanceCount = await _unitOfWork.Repository<Attendance>()
                 .GetQueryable()
                 .Where(a => a.StudentId == enrollment.StudentId && a.CourseOfferingId == courseOfferingId)
                 .CountAsync(a => a.IsPresent);
 
-            // Get total classes scheduled so far
             var totalClasses = await _unitOfWork.Repository<Attendance>()
                 .GetQueryable()
                 .Where(a => a.CourseOfferingId == courseOfferingId)
@@ -111,15 +186,25 @@ public class CourseService : ICourseService
                 IsPresent = attendanceForDate
             });
         }
+        await _cache.SetAsync(
+    cacheKey,
+    result,
+    TimeSpan.FromMinutes(10)
+);
+
 
         return result;
     }
 
     public async Task CreateAnnouncementAsync(int instructorId, CreateAnnouncementRequest request)
     {
-        // Verify the instructor owns this course offering
-        var offering = await _unitOfWork.Repository<CourseOffering>().GetQueryable()
-            .FirstOrDefaultAsync(o => o.Id == request.CourseOfferingId && o.InstructorId == instructorId);
+        var offering = await _unitOfWork.Repository<CourseOffering>()
+            .GetQueryable()
+            .Include(o => o.Course)
+            .Include(o => o.Enrollments)
+                .ThenInclude(e => e.Student)  
+            .FirstOrDefaultAsync(o => o.Id == request.CourseOfferingId
+                                    && o.InstructorId == instructorId);
 
         if (offering == null)
             throw new Exception("Course offering not found or you don't have permission.");
@@ -135,10 +220,50 @@ public class CourseService : ICourseService
 
         await _unitOfWork.Repository<Announcement>().AddAsync(announcement);
         await _unitOfWork.SaveChangesAsync();
+
+        await _cache.RemoveAsync($"announcements:{instructorId}:{request.CourseOfferingId}");
+
+        var courseCode = offering.Course.Code;
+        var courseName = offering.Course.Name;
+        var title = request.Title;
+        var content = request.Content;
+
+        foreach (var enrollment in offering.Enrollments.Where(e => e.IsActive))
+        {
+            var studentEmail = enrollment.Student.Email;
+            var studentFirstName = enrollment.Student.FirstName;
+
+            _backgroundJobs.Enqueue<IEmailService>(x => x.SendEmailAsync(
+                studentEmail,
+                $"New Announcement: {courseCode} - {title}",
+                $"Dear {studentFirstName},\n\n" +
+                $"A new announcement has been posted for {courseCode} - {courseName}:\n\n" +
+                $"**{title}**\n\n" +
+                $"{content}\n\n" +
+                $"Best regards,\nUniversity Information System",
+                false
+            ));
+        }
+
     }
 
     public async Task<IEnumerable<AnnouncementResponse>> GetAnnouncementsAsync(int instructorId, int courseOfferingId)
     {
+        var cacheKey =
+       $"announcements:{instructorId}:{courseOfferingId}";
+        var cachedAnnouncements =
+       await _cache.GetAsync<List<AnnouncementResponse>>(cacheKey);
+
+        if (cachedAnnouncements is not null)
+        {
+            Console.WriteLine(
+    $"REDIS HIT: {cacheKey} - {cachedAnnouncements.Count} announcements"
+);
+
+            return cachedAnnouncements;
+        }
+
+        Console.WriteLine($"REDIS MISS: {cacheKey}");
         var announcements = await _unitOfWork.Repository<Announcement>()
             .GetQueryable()
             .Include(a => a.CourseOffering)
@@ -147,7 +272,7 @@ public class CourseService : ICourseService
             .OrderByDescending(a => a.CreatedDate)
             .ToListAsync();
 
-        return announcements.Select(a => new AnnouncementResponse
+        var result = announcements.Select(a => new AnnouncementResponse
         {
             Id = a.Id,
             Title = a.Title,
@@ -156,7 +281,16 @@ public class CourseService : ICourseService
             CourseOfferingId = a.CourseOfferingId,
             InstructorId = a.InstructorId,
             CourseCode = a.CourseOffering.Course.Code,
-        });
+        }).ToList();
+
+        await _cache.SetAsync(
+  cacheKey,
+  result,
+  TimeSpan.FromMinutes(10)
+);
+
+        return result;
+
     }
 
    

@@ -1,5 +1,5 @@
-﻿using Azure.Core;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using UIS.Application.Abstractions;
 using UIS.Application.Abstractions.StudentAbstractions;
 using UIS.Application.DTOs.Admin;
 using UIS.Application.DTOs.Student.Courses;
@@ -7,26 +7,49 @@ using UIS.Domain.Entities;
 using UIS.Infrastructure.Repositories;
 namespace UIS.Application.Services.StudentServices;
 
+using Hangfire;
+
 public class EnrollmentService : IEnrollmentService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICacheService _cache;
+    private readonly IBackgroundJobService _backgroundJobs; // ✅ Injected
 
 
-    public EnrollmentService(IUnitOfWork unitOfWork)
+
+    public EnrollmentService(IUnitOfWork unitOfWork, ICacheService cache, IBackgroundJobService backgroundJobs)
     {
         _unitOfWork = unitOfWork;
+        _cache = cache;
+        _backgroundJobs = backgroundJobs;
     }
 
     public async Task<IEnumerable<CourseResponse>> GetOpenCoursesAsync(int studentId)
     {
+
+        var cacheKey = $"open-courses:{studentId}";
+
+        var cachedCourses =
+            await _cache.GetAsync<List<CourseResponse>>(cacheKey);
+
+        if (cachedCourses is not null)
+        {
+            Console.WriteLine(
+                $"REDIS HIT: {cacheKey} - {cachedCourses.Count} courses"
+            );
+
+            return cachedCourses;
+        }
+
+        Console.WriteLine($"REDIS MISS: {cacheKey}");
         var offerings = await _unitOfWork.Repository<CourseOffering>()
             .GetQueryable()
-            .Include(o => o.Course)              // ✅ MUST INCLUDE THIS
+            .Include(o => o.Course)
                 .ThenInclude(c => c.PrerequisiteCourse)
-            .Include(o => o.Enrollments)          // ✅ MUST INCLUDE THIS
-            .Include(o => o.Semester)             // ✅ If you filter by Semester.IsActive
+            .Include(o => o.Enrollments)
+            .Include(o => o.Semester)
             .Include(o => o.Instructor)
-            .Where(o => o.Semester.IsActive)      // Now Semester is loaded
+            .Where(o => o.Semester.IsActive)
             .ToListAsync();
 
         var completedEnrollments = await _unitOfWork.Repository<Enrollment>()
@@ -48,31 +71,50 @@ public class EnrollmentService : IEnrollmentService
             .Include(e => e.CourseOffering)
             .ToListAsync();
 
-        return offerings
+        var result = offerings
             .Where(o => !o.Course.PrerequisiteCourseId.HasValue
                 || completedCourseIds.Contains(o.Course.PrerequisiteCourseId.Value))
             .Where(o => !currentEnrollments.Any(e =>
                 SchedulesOverlap(e.CourseOffering, o)))
             .Where(o => o.EndTime > o.StartTime)
             .Select(o => new CourseResponse
-        {
-            Id = o.Id,
-            Code = o.Course.Code,
-            Name = o.Course.Name,
-            Credits = o.Course.Credits,
-            Quota = o.Course.Quota,
-            AvailableSlots = o.Course.Quota - o.Enrollments.Count,
-            HasPrerequisite = o.Course.PrerequisiteCourseId.HasValue,
-            PrerequisiteCode = o.Course.PrerequisiteCourse?.Code,
-            Day = o.Day.ToString(),
-            StartTime = o.StartTime.ToString(@"hh\:mm"),
-            EndTime = o.EndTime.ToString(@"hh\:mm"),
-            Classroom = o.Classroom,
-            InstructorName = $"{o.Instructor.FirstName} {o.Instructor.LastName}"
-            });
+            {
+                Id = o.Id,
+                Code = o.Course.Code,
+                Name = o.Course.Name,
+                Credits = o.Course.Credits,
+                Quota = o.Course.Quota,
+                AvailableSlots = o.Course.Quota - o.Enrollments.Count,
+                HasPrerequisite = o.Course.PrerequisiteCourseId.HasValue,
+                PrerequisiteCode = o.Course.PrerequisiteCourse?.Code,
+                Day = o.Day.ToString(),
+                StartTime = o.StartTime.ToString(@"hh\:mm"),
+                EndTime = o.EndTime.ToString(@"hh\:mm"),
+                Classroom = o.Classroom,
+                InstructorName = $"{o.Instructor.FirstName} {o.Instructor.LastName}"
+            }).ToList();
+        await _cache.SetAsync(
+            cacheKey,
+            result,
+            TimeSpan.FromMinutes(10)
+        );
+        return result;
     }
     public async Task<IEnumerable<EnrollmentResponse>> GetActiveEnrollmentsAsync(int studentId)
     {
+        var cacheKey = $"active-enrollments:{studentId}";
+
+        var cachedEnrollments =
+            await _cache.GetAsync<List<EnrollmentResponse>>(cacheKey);
+
+        if (cachedEnrollments is not null)
+        {
+            Console.WriteLine(
+                $"REDIS HIT: {cacheKey} - {cachedEnrollments.Count} enrollments"
+            );
+
+            return cachedEnrollments;
+        }
         var enrollments = await _unitOfWork.Repository<Enrollment>()
             .GetQueryable()
             .Include(e => e.CourseOffering)
@@ -86,7 +128,7 @@ public class EnrollmentService : IEnrollmentService
                         && e.CourseOffering.Semester.IsActive)
             .ToListAsync();
 
-        return enrollments.Select(e => new EnrollmentResponse
+        var result = enrollments.Select(e => new EnrollmentResponse
         {
             Id = e.Id,
             CourseOfferingId = e.CourseOfferingId,
@@ -100,8 +142,13 @@ public class EnrollmentService : IEnrollmentService
             EndTime = e.CourseOffering.EndTime.ToString(@"hh\:mm"),
             Classroom = e.CourseOffering.Classroom,
             InstructorName = $"{e.CourseOffering.Instructor.FirstName} {e.CourseOffering.Instructor.LastName}",
-            // Add any other properties you need (e.g., Midterm, Final, etc.)
-        });
+        }).ToList();
+        await _cache.SetAsync(
+            cacheKey,
+            result,
+            TimeSpan.FromMinutes(10)
+        );
+        return result;
     }
 
 
@@ -109,12 +156,11 @@ public class EnrollmentService : IEnrollmentService
     {
 
 
-        // 1. Get the course offering with its Course and existing Enrollments
         var offeringRepo = _unitOfWork.Repository<CourseOffering>();
         var offering = await offeringRepo.GetQueryable()
             .Include(o => o.Course)
             .Include(o => o.Enrollments)
-            .Include(o=> o.Semester)
+            .Include(o => o.Semester)
             .FirstOrDefaultAsync(o => o.Id == courseOfferingId);
 
         if (offering == null)
@@ -192,6 +238,20 @@ public class EnrollmentService : IEnrollmentService
 
         await enrollmentRepo.AddAsync(enrollment);
         await _unitOfWork.SaveChangesAsync();
+        await _cache.RemoveAsync($"active-enrollments:{studentId}");
+        await _cache.RemoveAsync($"open-courses:{studentId}");
+
+        var student = await _unitOfWork.Repository<User>().GetByIdAsync(studentId);
+        var course = offering.Course;
+
+        if (student == null)
+            throw new InvalidOperationException("Student not found.");
+
+        _backgroundJobs.Enqueue<IEmailService>(x => x.SendEmailAsync(
+            student.Email,
+            $"Enrollment Confirmation: {course.Code}",
+            $"Dear {student.FirstName},\n\nYou have successfully enrolled in {course.Code} - {course.Name}.\n\nBest regards,\nUniversity Information System",
+            false));
     }
 
     private static bool SchedulesOverlap(CourseOffering first, CourseOffering second)
@@ -209,18 +269,32 @@ public class EnrollmentService : IEnrollmentService
     {
         var repo = _unitOfWork.Repository<Enrollment>();
 
-        // ✅ Load CourseOffering and its Semester
         var enrollment = await repo.GetQueryable()
             .Include(e => e.CourseOffering)
                 .ThenInclude(o => o.Semester)
+            .Include(e => e.CourseOffering)
+                .ThenInclude(o => o.Course)
             .FirstOrDefaultAsync(e => e.Id == enrollmentId && e.StudentId == studentId);
 
         if (enrollment == null)
             throw new Exception("Enrollment not found.");
 
-       
+        var studentEmail = (await _unitOfWork.Repository<User>().GetByIdAsync(studentId))?.Email
+            ?? throw new InvalidOperationException("Student not found.");
+        var studentFirstName = (await _unitOfWork.Repository<User>().GetByIdAsync(studentId))!.FirstName;
+        var courseCode = enrollment.CourseOffering.Course.Code;
+        var courseName = enrollment.CourseOffering.Course.Name;
 
         repo.Delete(enrollment);
         await _unitOfWork.SaveChangesAsync();
+
+        await _cache.RemoveAsync($"active-enrollments:{studentId}");
+        await _cache.RemoveAsync($"open-courses:{studentId}");
+
+        _backgroundJobs.Enqueue<IEmailService>(x => x.SendEmailAsync(
+            studentEmail,
+            $"Withdrawal Confirmation: {courseCode}",
+            $"Dear {studentFirstName},\n\nYou have successfully withdrawn from {courseCode} - {courseName}.\n\nBest regards,\nUniversity Information System",
+            false));
     }
 }

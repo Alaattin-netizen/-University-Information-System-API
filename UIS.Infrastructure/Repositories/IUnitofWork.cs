@@ -1,4 +1,4 @@
-﻿using UIS.Domain.Entities;
+﻿
 
 namespace UIS.Infrastructure.Repositories;
 

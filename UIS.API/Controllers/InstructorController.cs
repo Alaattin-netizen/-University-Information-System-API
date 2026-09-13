@@ -94,7 +94,11 @@ public class InstructorController : BaseApiController
     {
         try
         {
+            Console.WriteLine("===== CONTROLLER BEFORE COURSE SERVICE =====");
+
             var students = await _CourseService.GetRegisteredStudentsAsync(GetInstructorId(), courseOfferingId, date);
+            Console.WriteLine("===== CONTROLLER AFTER COURSE SERVICE =====");
+
             return Ok(students);
         }
 
