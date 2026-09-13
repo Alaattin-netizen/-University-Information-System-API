@@ -8,16 +8,18 @@ using UIS.Application.Abstractions.AdminAbstractions;
 using UIS.Application.Abstractions.InstructorAbstractions;
 // ✅ Student Abstractions (for student-related services)
 using UIS.Application.Abstractions.StudentAbstractions;
+using UIS.Application.Configuration;
+
 // ✅ General Services
 using UIS.Application.Services;
 using UIS.Application.Services.AdminServices;
 
 // ✅ Instructor Services
 using UIS.Application.Services.InstructorServices;
-// ✅ Student Services
 using UIS.Application.Services.StudentServices;
 using UIS.Infrastructure.Data;
 using UIS.Infrastructure.Repositories;
+using UIS.Infrastructure.Services;
 
 namespace UIS.Application;
 
@@ -69,6 +71,10 @@ public static class DependencyInjection
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IUserRoleService, UserRoleService>();
 
+        services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
+        services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<ICacheService, CacheService>();
+        services.AddScoped<IBackgroundJobService, BackgroundJobService>();
         return services;
     }
 }

@@ -2,14 +2,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using UIS.Application;
-using Microsoft.OpenApi; 
+using Microsoft.OpenApi;
+using Hangfire;
+using Hangfire.SqlServer;
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 
-// 1. Register ALL services (Application + Infrastructure) via Application's extension method
-
-// 2. Add API-specific services
 builder.Services.AddControllers();
 builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -20,6 +18,14 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.InstanceName = "UIS:";
 });
 builder.Services.AddEndpointsApiExplorer();
+
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddHangfireServer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -89,6 +95,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new Hangfire.Dashboard.LocalRequestsOnlyAuthorizationFilter() }
+});
 
 app.UseAuthentication();
 app.UseAuthorization();

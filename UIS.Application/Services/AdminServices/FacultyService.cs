@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using UIS.Application.Abstractions.AdminAbstractions;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 using UIS.Application.DTOs.Admin.Course;
 using UIS.Application.DTOs.Admin.Department;
 using UIS.Application.DTOs.Admin.Faculty;
@@ -12,12 +14,11 @@ namespace UIS.Application.Services.AdminServices;
 public class FacultyService : IFacultyService
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly LoggingHelper _loggingHelper;
-
-    public FacultyService(IUnitOfWork unitOfWork, LoggingHelper loggingHelper)
+    private readonly IDistributedCache _cache;
+    public FacultyService(IUnitOfWork unitOfWork, IDistributedCache cache)
     {
         _unitOfWork = unitOfWork;
-        _loggingHelper = loggingHelper;
+        _cache = cache;
     }
 
     // ======================================================
@@ -277,6 +278,17 @@ public class FacultyService : IFacultyService
 
     public async Task<IEnumerable<CourseResponse>> GetAllCoursesAsync(CourseFilterRequest filter)
     {
+        const string cacheKey = "courses:all";
+
+        var cachedCourses = await _cache.GetStringAsync(cacheKey);
+
+        if (cachedCourses is not null)
+        {
+            return JsonSerializer.Deserialize<List<CourseResponse>>(
+                cachedCourses
+            )!;
+        }
+
         var courses = await _unitOfWork.Repository<Course>()
             .GetQueryable()
             .Include(c => c.Department)
